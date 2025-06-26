@@ -24,7 +24,7 @@
     <a href="#contributing">Contributing</a>
   </p>
 
-  <h3>📸 Screenshots</h3>
+
   <div style="display: flex; flex-direction: column; align-items: center; gap: 20px; margin: 20px 0;">
     <img src="img1.png" alt="Landing Page" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
     <img src="img2.png" alt="Chat Interface" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
