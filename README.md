@@ -1,57 +1,155 @@
-# CaaSAssist - Conversational Agent as a Service
+<div align="center">
+  <h1>🤖 CaaSAssist - Conversational Agent as a Service</h1>
+  <p>A production-grade, multi-tenant SaaS platform that enables seamless document-based AI conversations through Retrieval-Augmented Generation (RAG) technology.</p>
+  
+  <p align="center">
+    <a href="https://github.com/PriyankaAnantha/caasassist-platform">
+      <img src="https://img.shields.io/github/stars/PriyankaAnantha/caasassist-platform?style=social" alt="GitHub Stars">
+      <img src="https://img.shields.io/github/forks/PriyankaAnantha/caasassist-platform?style=social" alt="GitHub Forks">
+      <img src="https://img.shields.io/github/issues/PriyankaAnantha/caasassist-platform" alt="GitHub Issues">
+    </a>
+    <a href="LICENSE">
+      <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
+    </a>
+    <a href="https://nextjs.org/">
+      <img src="https://img.shields.io/badge/Next.js-13+-000000?logo=nextdotjs&logoColor=white" alt="Next.js">
+    </a>
+  </p>
+  
+  <p align="center">
+    <a href="#features">Features</a> •
+    <a href="#tech-stack">Tech Stack</a> •
+    <a href="#getting-started">Getting Started</a> •
+    <a href="#deployment">Deployment</a> •
+    <a href="#contributing">Contributing</a>
+  </p>
 
-A cutting-edge, multi-tenant SaaS platform that enables users to upload documents, configure AI chat agents, and engage in intelligent conversations powered by RAG (Retrieval-Augmented Generation) technology.
+  <h3>📸 Screenshots</h3>
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 20px; margin: 20px 0;">
+    <img src="img1.png" alt="Landing Page" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+    <img src="img2.png" alt="Chat Interface" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+    <img src="img3.png" alt="Document Management" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+    <img src="img4.png" alt="AI Model Selection" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+  </div>
 
-![Landing Page](img1.png)
+  <h3>🔐 Test User Credentials</h3>
+  <p>Feel free to use these test credentials to explore the platform:</p>
+  <p><strong>Email:</strong> testuser1@example.com<br><strong>Password:</strong> 1****6</p>
+</div>
 
-## 🚀 Features
+## ✨ Key Features
 
-- **Multi-Tenant Architecture**: Secure, isolated user environments
-- **Document Processing**: Upload and process PDFs, text files with automatic chunking and vectorization
-- **RAG-Powered Chat**: Intelligent conversations with context from your documents
-- **Multiple AI Providers**: OpenAI, OpenRouter (free models), and local Ollama support
-- **Real-time Streaming**: Live AI responses with streaming capabilities
-- **Chat History**: Persistent conversation management with search and organization
-- **Modern UI**: Clean, professional interface with light/dark theme support
+### Core Capabilities
+- **Multi-Tenant Architecture**
+  - Secure, isolated user environments with role-based access control
+  - Data isolation at the database level
+
+- **Advanced Document Processing**
+  - Support for PDF, TXT, and Markdown formats
+  - Automatic document chunking and vectorization
+  - Smart metadata extraction and indexing
+
+- **Intelligent Chat Experience**
+  - Context-aware conversations using RAG technology
+  - Support for follow-up questions and conversation history
+  - Real-time response streaming
+
+### Technical Highlights
+- **Multi-Model Support**
+  - OpenAI (GPT-4o, GPT-3.5-turbo)
+  - OpenRouter (free models)
+  - Local Ollama integration
+  - Easy model switching and comparison
+
+- **Developer Experience**
+  - TypeScript-first development
+  - Well-documented APIs
+  - Comprehensive test coverage
+  - CI/CD ready
+
+- **Performance & Scalability**
+  - Serverless architecture
+  - Edge caching
+  - Optimized vector search with pgvector
+  - Efficient document processing pipeline
 
 ## 🛠 Tech Stack
 
 ### Frontend
-- **Next.js 15** (App Router)
-- **React 19** with TypeScript
-- **Tailwind CSS** for styling
-- **ShadCN/UI** component library
-- **Zustand** for state management
-- **Framer Motion** for animations
+<div style="display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 20px 0;">
+  <a href="https://nextjs.org/" target="_blank">
+    <img src="https://img.shields.io/badge/Next.js-13+-000000?logo=nextdotjs&logoColor=white&style=for-the-badge" alt="Next.js">
+  </a>
+  <a href="https://react.dev/" target="_blank">
+    <img src="https://img.shields.io/badge/React-18+-61DAFB?logo=react&logoColor=black&style=for-the-badge" alt="React">
+  </a>
+  <a href="https://www.typescriptlang.org/" target="_blank">
+    <img src="https://img.shields.io/badge/TypeScript-5+-3178C6?logo=typescript&logoColor=white&style=for-the-badge" alt="TypeScript">
+  </a>
+  <a href="https://tailwindcss.com/" target="_blank">
+    <img src="https://img.shields.io/badge/Tailwind_CSS-3.3+-38B2AC?logo=tailwind-css&logoColor=white&style=for-the-badge" alt="Tailwind CSS">
+  </a>
+  <a href="https://ui.shadcn.com/" target="_blank">
+    <img src="https://img.shields.io/badge/ShadCN/UI-0.4+-000000?logo=shadcnui&logoColor=white&style=for-the-badge" alt="ShadCN/UI">
+  </a>
+  <a href="https://zustand-demo.pmnd.rs/" target="_blank">
+    <img src="https://img.shields.io/badge/Zustand-4.4+-000000?logo=zustand&logoColor=white&style=for-the-badge" alt="Zustand">
+  </a>
+  <a href="https://www.framer.com/motion/" target="_blank">
+    <img src="https://img.shields.io/badge/Framer_Motion-10+-0055FF?logo=framer&logoColor=white&style=for-the-badge" alt="Framer Motion">
+  </a>
+</div>
 
 ### Backend
-- **Next.js API Routes** (RESTful APIs)
-- **Server-Sent Events** for chat streaming
-- **AI SDK** for LLM integration
+<div style="display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0;">
+  <img src="https://img.shields.io/badge/Next.js_API-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js API">
+  <img src="https://img.shields.io/badge/Server--Sent_Events-FF6B6B?style=for-the-badge&logo=serverless&logoColor=white" alt="Server-Sent Events">
+  <img src="https://img.shields.io/badge/AI_SDK-000000?style=for-the-badge&logo=openai&logoColor=white" alt="AI SDK">
+</div>
 
 ### Database & Services
-- **Supabase** (PostgreSQL with pgvector)
-- **Supabase Auth** for authentication
-- **Supabase Storage** for file storage
+<div style="display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0;">
+  <img src="https://img.shields.io/badge/Supabase-181818?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase">
+  <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/pgvector-000000?style=for-the-badge&logo=postgresql&logoColor=white" alt="pgvector">
+  <img src="https://img.shields.io/badge/Supabase_Storage-181818?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase Storage">
+  <img src="https://img.shields.io/badge/Supabase_Auth-181818?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase Auth">
+</div>
 
 ### AI Providers
-- **OpenAI** (GPT-4o, GPT-4o-mini, GPT-3.5-turbo) - requires API key
-- **OpenRouter** (free models: Llama 3.2, Gemma 2) - requires free API key
-- **Ollama** (local models) - free, runs locally
+<div style="display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0;">
+  <img src="https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white" alt="OpenAI">
+  <img src="https://img.shields.io/badge/OpenRouter-412991?style=for-the-badge&logo=openai&logoColor=white" alt="OpenRouter">
+  <img src="https://img.shields.io/badge/Ollama-000000?style=for-the-badge&logo=ollama&logoColor=white" alt="Ollama">
+  <img src="https://img.shields.io/badge/Llama-FF6B35?style=for-the-badge&logo=llama&logoColor=white" alt="Llama">
+  <img src="https://img.shields.io/badge/Gemma-FF6B35?style=for-the-badge&logo=google&logoColor=white" alt="Gemma">
+</div>
 
-## 📋 Prerequisites
+## 🚀 Getting Started
 
-- Node.js 18+ 
-- npm or yarn
-- Supabase account
-- AI provider API keys (optional for free models)
+### Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- [Node.js](https://nodejs.org/) 18.17 or later
+- [npm](https://www.npmjs.com/) 9+ or [Yarn](https://yarnpkg.com/) 1.22+
+- [Git](https://git-scm.com/)
+- [Supabase](https://supabase.com/) account (free tier available)
+- (Optional) [Docker](https://www.docker.com/) for local development with Ollama
+
+### System Requirements
+
+- RAM: 8GB+ (16GB recommended for local AI models)
+- Disk Space: 2GB+ free space
+- Internet connection for API dependencies
 
 ## 🚀 Quick Start
 
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/PriyankaAnantha/caasassist-platform.git
+
 cd caasassist-platform
 ```
 
@@ -332,16 +430,44 @@ caasassist-platform/
 4. Add tests if applicable
 5. Submit a pull request
 
+## 🤝 Contributing
+
+We welcome contributions from the community! Here's how you can help:
+
+1. **Report Bugs**: File an issue if you find any bugs or have suggestions
+2. **Submit Pull Requests**: Help fix issues or add new features
+3. **Improve Documentation**: Help improve our documentation
+4. **Share Feedback**: Let us know how we can improve
+
+Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting pull requests.
+
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## 🙌 Acknowledgments
 
-For support and questions:
-- Create an issue in the repository
-- Check the documentation
-- Review the troubleshooting section
+- Built with ❤️ by [Priyanka A](https://github.com/PriyankaAnantha)
+- Thanks to mentor [Ma'am Sharmila Sudhakar](https://github.com/sharmilasudhakar07) who has helped shape this project
+- Special thanks to the open-source community for the amazing tools and libraries
+
+## 📚 Resources
+
+- [Documentation](https://github.com/PriyankaAnantha/caasassist-platform/wiki)
+- [API Reference](https://github.com/PriyankaAnantha/caasassist-platform/wiki/API-Reference)
+- [Changelog](CHANGELOG.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+
+## 🌟 Show Your Support
+
+If you find this project useful, please consider giving it a ⭐️ on [GitHub](https://github.com/PriyankaAnantha/caasassist-platform).
+
+## 📬 Contact
+
+For any questions or feedback, please reach out:
+- [Create an Issue](https://github.com/PriyankaAnantha/caasassist-platform/issues)
+- Email: [Your Email] (optional)
+- Twitter: [@YourHandle] (optional)
 
 ## 🔄 Recent Updates
 
@@ -359,4 +485,22 @@ For support and questions:
 
 ---
 
-Built with ❤️ by Priyanka A using Next.js, Supabase, and the AI SDK.
+<div align="center">
+  <p>Built with ❤️ by <a href="https://github.com/PriyankaAnantha" target="_blank">Priyanka A</a></p>
+  <p>
+    <a href="https://github.com/PriyankaAnantha/caasassist-platform" target="_blank">
+      <img src="https://img.shields.io/github/stars/PriyankaAnantha/caasassist-platform?style=social" alt="GitHub Stars">
+    </a>
+    <a href="https://github.com/PriyankaAnantha/caasassist-platform/fork" target="_blank">
+      <img src="https://img.shields.io/github/forks/PriyankaAnantha/caasassist-platform?style=social" alt="GitHub Forks">
+    </a>
+    <a href="https://github.com/PriyankaAnantha/caasassist-platform/issues" target="_blank">
+      <img src="https://img.shields.io/github/issues/PriyankaAnantha/caasassist-platform?style=social" alt="GitHub Issues">
+    </a>
+  </p>
+  <p>
+    <a href="https://github.com/PriyankaAnantha/caasassist-platform/blob/main/LICENSE" target="_blank">
+      <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
+    </a>
+  </p>
+</div>
