@@ -204,7 +204,7 @@ export function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-blue-200/50 bg-white/80 backdrop-blur-sm dark:bg-gray-900/80 dark:border-gray-700/50 py-8">
         <div className="container mx-auto px-4 text-center text-gray-600 dark:text-gray-400">
-          <p>&copy; 2024 CaaSAssist. All rights reserved.</p>
+          <p>&copy; 2025 CaaSAssist. All rights reserved.</p>
         </div>
       </footer>
 
