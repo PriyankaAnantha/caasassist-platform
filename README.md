@@ -430,6 +430,14 @@ caasassist-platform/
 4. Add tests if applicable
 5. Submit a pull request
 
+## 📬 Contact
+
+For any questions or feedback, please feel free to reach out:
+
+- [Email](mailto:priyankaananthashetty@gmail.com)
+- [LinkedIn](https://www.linkedin.com/in/priyanka-anantha/)
+- [GitHub Issues](https://github.com/PriyankaAnantha/caasassist-platform/issues)
+
 ## 🤝 Contributing
 
 We welcome contributions from the community! Here's how you can help:
@@ -439,7 +447,6 @@ We welcome contributions from the community! Here's how you can help:
 3. **Improve Documentation**: Help improve our documentation
 4. **Share Feedback**: Let us know how we can improve
 
-Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting pull requests.
 
 ## 📄 License
 
@@ -453,21 +460,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📚 Resources
 
-- [Documentation](https://github.com/PriyankaAnantha/caasassist-platform/wiki)
-- [API Reference](https://github.com/PriyankaAnantha/caasassist-platform/wiki/API-Reference)
 - [Changelog](CHANGELOG.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## 🌟 Show Your Support
 
 If you find this project useful, please consider giving it a ⭐️ on [GitHub](https://github.com/PriyankaAnantha/caasassist-platform).
-
-## 📬 Contact
-
-For any questions or feedback, please reach out:
-- [Create an Issue](https://github.com/PriyankaAnantha/caasassist-platform/issues)
-- Email: [Your Email] (optional)
-- Twitter: [@YourHandle] (optional)
 
 ## 🔄 Recent Updates
 
