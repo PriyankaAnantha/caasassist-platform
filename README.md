@@ -34,7 +34,7 @@
 
   <h3>🔐 Test User Credentials</h3>
   <p>Feel free to use these test credentials to explore the platform:</p>
-  <p><strong>Email:</strong> testuser1@example.com<br><strong>Password:</strong> 1****6</p>
+  <p><strong>Email:</strong> procodergo@gmail.com<br><strong>Password:</strong> 1****6</p>
 </div>
 
 ## ✨ Key Features
