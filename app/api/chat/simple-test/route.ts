@@ -10,7 +10,7 @@ export async function GET() {
         nodeEnv: process.env.NODE_ENV,
         hasOpenAI: !!process.env.OPENAI_API_KEY,
         hasOpenRouter: !!process.env.OPENROUTER_API_KEY,
-        ollamaUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434/v1",
+        ollamaUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434/",
       },
     })
   } catch (error: any) {

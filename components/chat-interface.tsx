@@ -13,7 +13,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ChatHeader } from "@/components/chat-header"
 import { ChatHistory } from "@/components/chat-history"
 import { DocumentManager } from "@/components/document-manager"
-import { OllamaChecker } from "@/components/ollama-checker"
+import { MarkdownRenderer } from "./markdown-renderer"
+import { OllamaSetup } from "@/components/ollama-setup"
 import { useChatStore } from "@/lib/stores/chat-store"
 import { useAuth } from "@/components/auth-provider"
 import { createClient } from "@/lib/supabase/client"
@@ -37,15 +38,19 @@ export function ChatInterface() {
   const {
     currentSession,
     messages: storeMessages,
-    isStreaming,
+    isStreaming: isStreamingGlobal,
     selectedModel,
     selectedProvider,
+    ollamaUrl,
     setCurrentSession,
     setMessages,
     addMessage,
-    setIsStreaming,
+    setIsStreaming: setGlobalIsStreaming,
     clearCurrentChat,
   } = useChatStore()
+  
+  // Local state for streaming to handle UI updates more responsively
+  const [isStreaming, setIsStreaming] = useState(false)
 
   const {
     messages,
@@ -63,6 +68,7 @@ export function ChatInterface() {
       model: selectedModel,
       provider: selectedProvider,
       sessionId: currentSession?.id,
+      ollamaUrl: selectedProvider === "ollama" ? ollamaUrl : undefined, // Add this
     },
     headers: {
       "Content-Type": "application/json",
@@ -70,6 +76,7 @@ export function ChatInterface() {
     onFinish: async (message) => {
       console.log("Chat finished successfully")
       setIsStreaming(false)
+      setGlobalIsStreaming(false)
       setConnectionError("")
       setRetryCount(0)
       setFallbackMode(false)
@@ -83,72 +90,119 @@ export function ChatInterface() {
         }
       }
     },
-    onError: (error) => {
-      console.error("=== Chat Error Details ===")
-      console.error("Error:", error)
-
+    onError: async (rawError) => {
       setIsStreaming(false)
+      setGlobalIsStreaming(false)
+      
+      // Try to parse the error response if it's a Response object
+      let errorDetails = { message: '', details: '', suggestion: '', type: '' }
+      
+      try {
+        if (rawError && typeof rawError === 'object' && 'json' in rawError) {
+          const errorResponse = rawError as Response
+          const errorData = await errorResponse.json().catch(() => ({}))
+          errorDetails = {
+            message: errorData.error || 'Unknown error',
+            details: errorData.details || '',
+            suggestion: errorData.suggestion || '',
+            type: errorData.type || 'unknown_error'
+          }
+        } else if (rawError instanceof Error) {
+          errorDetails = {
+            message: rawError.message,
+            details: '',
+            suggestion: 'An unexpected error occurred',
+            type: 'unexpected_error'
+          }
+        }
+      } catch (parseError) {
+        console.error('Error parsing error response:', parseError)
+      }
 
-      // Enhanced debug info
+      // Safe error logging to prevent serialization issues
+      try {
+        console.error("=== Chat Error Details ===")
+        // Safely stringify the raw error for logging
+        const safeRawError = rawError instanceof Error 
+          ? { 
+              name: rawError.name, 
+              message: rawError.message, 
+              stack: rawError.stack,
+              // Add any other safe properties
+              ...(rawError as any).cause ? { cause: String((rawError as any).cause) } : {}
+            } 
+          : typeof rawError === 'object' 
+            ? JSON.parse(JSON.stringify(rawError, (key, value) => 
+                typeof value === 'bigint' ? value.toString() : value
+              ))
+            : rawError
+            
+        console.error("Raw error:", safeRawError)
+        console.error("Error details:", errorDetails)
+      } catch (logError) {
+        console.error("Error while logging error:", logError)
+      }
+
       const debugData = {
         error: {
-          message: error?.message || String(error) || "Unknown error",
-          name: error?.name || "UnknownError",
-          type: typeof error,
+          message: errorDetails.message || 'Unknown error',
+          details: errorDetails.details,
+          type: errorDetails.type,
+          name: (rawError && typeof rawError === 'object' && 'name' in rawError) 
+            ? String(rawError.name) 
+            : 'UnknownError',
+          stack: (rawError instanceof Error && rawError.stack) 
+            ? rawError.stack.toString() 
+            : undefined,
         },
         context: {
           timestamp: new Date().toISOString(),
-          retryCount,
-          user: user?.id,
-          session: currentSession?.id,
-          model: selectedModel,
           provider: selectedProvider,
-          messagesCount: messages.length,
-          fallbackMode,
-        },
-        lastRequest: {
           model: selectedModel,
-          provider: selectedProvider,
-          sessionId: currentSession?.id,
+          isOllama: selectedProvider === 'ollama',
+          ollamaUrl: selectedProvider === 'ollama' ? ollamaUrl : undefined
         },
       }
-
       setDebugInfo(debugData)
 
-      // Parse error for user-friendly message
-      let errorMessage = "Something went wrong with the AI response"
-      let suggestion = ""
+      // Set user-friendly error messages
+      let errorMessage = errorDetails.message || "Something went wrong with the AI response"
+      let suggestion = errorDetails.suggestion || ""
 
-      const errorStr = String(error?.message || error || "")
-
+      // Handle Ollama-specific errors
       if (selectedProvider === "ollama") {
-        errorMessage = "Ollama connection failed"
-        suggestion = "Make sure Ollama is running with 'ollama serve' and the model is installed"
-      } else if (errorStr.includes("API key") || errorStr.includes("401")) {
+        if (errorDetails.type === 'ollama_connection_error') {
+          // Use the error details from the server
+          errorMessage = errorDetails.message || "Ollama connection failed"
+          suggestion = errorDetails.suggestion || "Make sure Ollama is running and accessible"
+        } else if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('Failed to fetch')) {
+          errorMessage = "Could not connect to Ollama server"
+          suggestion = `Make sure Ollama is running at ${ollamaUrl || 'http://localhost:11434'}`
+        } else if (errorMessage.includes('model not found')) {
+          errorMessage = `Model "${selectedModel}" not found in Ollama`
+          suggestion = `Run: ollama pull ${selectedModel}`
+        } else {
+          errorMessage = errorMessage || "Ollama error occurred"
+          suggestion = "Check the Ollama server logs for more details"
+        }
+      } 
+      // Handle other provider errors
+      else if (errorMessage.includes("API key") || errorMessage.includes("401")) {
         errorMessage = `${selectedProvider} API key issue`
         suggestion = "Check your API key configuration"
-      } else if (errorStr.includes("rate limit") || errorStr.includes("429")) {
+      } else if (errorMessage.includes("rate limit") || errorMessage.includes("429")) {
         errorMessage = "Rate limit exceeded"
-        suggestion = "Please wait a moment and try again"
-      } else if (errorStr.includes("quota") || errorStr.includes("402")) {
+        suggestion = "Please wait and try again"
+      } else if (errorMessage.includes("quota") || errorMessage.includes("402")) {
         errorMessage = "API quota exceeded"
         suggestion = "Check your billing settings"
-      } else if (errorStr.includes("fetch") || errorStr.includes("network")) {
+      } else if (errorMessage.includes("network") || errorMessage.includes("fetch")) {
         errorMessage = "Network error"
         suggestion = "Check your internet connection"
-      } else if (errorStr.includes("Authentication") || errorStr.includes("Unauthorized")) {
-        errorMessage = "Authentication error"
-        suggestion = "Please refresh the page and sign in again"
-      } else if (errorStr.includes("An error occurred")) {
-        errorMessage = "AI streaming error"
-        suggestion = "Try switching to a different model or provider"
-      } else if (errorStr) {
-        errorMessage = errorStr
       }
 
-      const fullErrorMessage = suggestion ? `${errorMessage}. ${suggestion}` : errorMessage
-      setConnectionError(fullErrorMessage)
-      setRetryCount((prev) => prev + 1)
+      const full = suggestion ? `${errorMessage}. ${suggestion}` : errorMessage
+      setConnectionError(full)
     },
   })
 
@@ -298,10 +352,13 @@ export function ChatInterface() {
 
     // Submit to AI SDK
     try {
+      setIsStreaming(true)
+      setGlobalIsStreaming(true)
       handleSubmit(e)
     } catch (submitError) {
       console.error("Submit error:", submitError)
       setIsStreaming(false)
+      setGlobalIsStreaming(false)
       setConnectionError("Failed to submit message")
     }
   }
@@ -339,7 +396,12 @@ export function ChatInterface() {
         createNewSession()
       }
     }
-  }, [user, isInitialized, currentSession])
+    
+    // Sync local streaming state with global state
+    if (isStreaming !== isStreamingGlobal) {
+      setIsStreaming(isStreamingGlobal)
+    }
+  }, [user, isInitialized, currentSession, isStreamingGlobal])
 
   // Show loading state while initializing
   if (!user || !isInitialized) {
@@ -368,9 +430,17 @@ export function ChatInterface() {
         return
       }
 
-      const dbMessages = (data || []).map((msg) => ({
+      interface Message {
+        id: string;
+        role: 'user' | 'assistant';
+        content: string;
+        created_at: string;
+        session_id: string;
+      }
+
+      const dbMessages = (data || [] as Message[]).map((msg: Message) => ({
         id: msg.id,
-        role: msg.role as "user" | "assistant",
+        role: msg.role,
         content: msg.content,
         timestamp: new Date(msg.created_at),
         session_id: msg.session_id,
@@ -379,10 +449,11 @@ export function ChatInterface() {
       console.log(`Loaded ${dbMessages.length} messages for session`)
 
       // Convert to AI SDK format and set both stores
-      const aiMessages = dbMessages.map((msg) => ({
+      const aiMessages = dbMessages.map((msg: { id: string; role: 'user' | 'assistant'; content: string }) => ({
         id: msg.id,
         role: msg.role,
         content: msg.content,
+        createdAt: new Date(),
       }))
 
       console.log("Setting messages in both stores:", aiMessages.length)
@@ -436,8 +507,8 @@ export function ChatInterface() {
           onToggleDocuments={() => setShowDocuments(!showDocuments)}
         />
 
-        {/* Ollama Status Checker */}
-        <OllamaChecker />
+        {/* Ollama Setup */}
+        <OllamaSetup />
 
         {/* Connection Error Alert */}
         {connectionError && (
@@ -521,7 +592,7 @@ export function ChatInterface() {
                   </div>
 
                   {/* Quick test button */}
-                  <Button variant="outline" size="sm" onClick={testChatAPI} className="mt-2">
+                  <Button variant="outline" size="sm" onClick={testChatAPI} className="mt-2 bg-transparent">
                     <Bug className="w-4 h-4 mr-2" />
                     Test Chat API
                   </Button>
@@ -547,7 +618,13 @@ export function ChatInterface() {
                           : "bg-white dark:bg-gray-800 border-blue-200/50"
                       }`}
                     >
-                      <div className="prose prose-sm max-w-none dark:prose-invert">{message.content}</div>
+                      <div className="prose prose-sm max-w-none dark:prose-invert">
+                        <MarkdownRenderer 
+                          content={message.content} 
+                          stream={isStreaming && message.role === 'assistant' && messages[messages.length - 1]?.id === message.id}
+                          streamSpeed={5}
+                        />
+                      </div>
                     </Card>
 
                     {message.role === "user" && (
@@ -569,9 +646,11 @@ export function ChatInterface() {
                     </AvatarFallback>
                   </Avatar>
                   <Card className="max-w-[80%] p-4 bg-white dark:bg-gray-800 border-blue-200/50">
-                    <div className="flex items-center space-x-2">
-                      <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                      <span className="text-sm text-gray-600 dark:text-gray-300">AI is thinking...</span>
+                    <div className="prose prose-sm max-w-none dark:prose-invert">
+                      <div className="flex items-center space-x-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                        <span className="text-sm text-gray-600 dark:text-gray-300">AI is thinking...</span>
+                      </div>
                     </div>
                   </Card>
                 </div>
@@ -599,7 +678,7 @@ export function ChatInterface() {
                   onClick={stop}
                   variant="outline"
                   size="icon"
-                  className="border-red-200 text-red-600 hover:bg-red-50"
+                  className="border-red-200 text-red-600 hover:bg-red-50 bg-transparent"
                 >
                   <Square className="w-4 h-4" />
                 </Button>

@@ -15,28 +15,22 @@ const openrouter = createOpenAI({
   },
 })
 
-// Create Ollama client
-const ollama = createOpenAI({
-  apiKey: "ollama", // Ollama doesn't need a real API key
-  baseURL: process.env.OLLAMA_BASE_URL || "http://localhost:11434/v1",
-})
-
 export async function POST(req: Request) {
   console.log("=== Chat API Request Started ===")
 
   try {
     // Parse request body
     const body = await req.json()
-    const { messages, model = "gpt-4o-mini", provider = "openai", sessionId } = body
+    const { messages, model = "gpt-4o-mini", provider = "openai", sessionId, ollamaUrl } = body
 
     console.log("Request details:", {
       messagesCount: messages?.length,
       model,
       provider,
       sessionId,
+      ollamaUrl,
       hasOpenAIKey: !!process.env.OPENAI_API_KEY,
       hasOpenRouterKey: !!process.env.OPENROUTER_API_KEY,
-      ollamaUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434/v1",
     })
 
     // Validate input
@@ -103,7 +97,6 @@ export async function POST(req: Request) {
     try {
       supabase = await createServerSupabaseClient()
 
-      // Use getUser() instead of getSession() for better security
       const {
         data: { user },
         error: userError,
@@ -123,7 +116,6 @@ export async function POST(req: Request) {
         )
       }
 
-      // Create a session object for compatibility
       session = { user }
     } catch (supabaseError: any) {
       console.error("Supabase error:", supabaseError)
@@ -172,7 +164,14 @@ You can help with:
 - Programming and technical questions
 - Writing and content creation
 
-Provide clear, helpful, and accurate responses. If you're referencing uploaded documents, mention that clearly.`
+Provide clear, helpful, and accurate responses. If you're referencing uploaded documents, mention that clearly.
+Remember that you are a technical writing assistant. When responding, format your answers in Markdown using:
+Section headings (##)
+Short paragraphs instead of bullet points
+Code blocks where needed
+Clean, readable language like in developer documentation
+
+Avoid raw bullet-point lists unless absolutely necessary. Use clear structure and logical flow.`
 
     // Enhanced document context retrieval
     let documentContext = ""
@@ -182,7 +181,6 @@ Provide clear, helpful, and accurate responses. If you're referencing uploaded d
         console.log("=== DOCUMENT SEARCH DEBUG ===")
         console.log("User message:", lastUserMessage.content)
 
-        // First, check if user has any completed documents
         const { data: userDocs, error: docsError } = await supabase
           .from("documents")
           .select("id, name, status, chunk_count")
@@ -202,12 +200,11 @@ Provide clear, helpful, and accurate responses. If you're referencing uploaded d
           console.log(`${completedDocs.length} completed documents`)
 
           if (completedDocs.length > 0) {
-            // Get all chunks for completed documents
             const { data: allChunks, error: chunksError } = await supabase
               .from("document_chunks")
               .select("content, metadata, document_id")
               .eq("user_id", session.user.id)
-              .limit(10) // Get more chunks for better context
+              .limit(10)
 
             console.log("Document chunks query result:", {
               chunksCount: allChunks?.length || 0,
@@ -219,14 +216,12 @@ Provide clear, helpful, and accurate responses. If you're referencing uploaded d
             } else if (allChunks && allChunks.length > 0) {
               console.log(`Found ${allChunks.length} document chunks`)
 
-              // Simple keyword matching for now
               const userQuery = lastUserMessage.content.toLowerCase()
               const keywords = userQuery.split(" ").filter((word) => word.length > 3)
               console.log("Search keywords:", keywords)
 
               let relevantChunks = allChunks
 
-              // If we have keywords, try to find relevant chunks
               if (keywords.length > 0) {
                 relevantChunks = allChunks.filter((chunk) => {
                   const chunkContent = chunk.content.toLowerCase()
@@ -236,22 +231,20 @@ Provide clear, helpful, and accurate responses. If you're referencing uploaded d
                 console.log(`Found ${relevantChunks.length} relevant chunks using keywords`)
               }
 
-              // If no relevant chunks found, use first few chunks as general context
               if (relevantChunks.length === 0) {
                 relevantChunks = allChunks.slice(0, 3)
                 console.log(`No keyword matches, using first ${relevantChunks.length} chunks as general context`)
               }
 
-              // Build document context
               if (relevantChunks.length > 0) {
                 documentContext = relevantChunks
-                  .slice(0, 5) // Limit to 5 chunks max
+                  .slice(0, 5)
                   .map((chunk, index) => {
                     const docName = userDocs.find((doc) => doc.id === chunk.document_id)?.name || "Unknown Document"
                     return `[Document: ${docName}]\n${chunk.content}`
                   })
                   .join("\n\n")
-                  .substring(0, 2000) // Limit total context size
+                  .substring(0, 2000)
 
                 console.log(`Built document context (${documentContext.length} characters)`)
                 console.log("Document context preview:", documentContext.substring(0, 200) + "...")
@@ -272,7 +265,6 @@ Provide clear, helpful, and accurate responses. If you're referencing uploaded d
       }
     } catch (docError) {
       console.error("Document context error:", docError)
-      // Continue without document context
     }
 
     // Select AI client and model
@@ -285,25 +277,25 @@ Provide clear, helpful, and accurate responses. If you're referencing uploaded d
         case "openai":
           aiClient = openai
           aiModel = model
+          maxTokens = 2000
           break
 
         case "openrouter":
-          // Enhanced OpenRouter client with better error handling
-          const openrouterClient = createOpenAI({
-            apiKey: process.env.OPENROUTER_API_KEY!,
-            baseURL: "https://openrouter.ai/api/v1",
-            headers: {
-              "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-              "X-Title": "CaaSAssist",
-            },
-          })
-          aiClient = openrouterClient
+          aiClient = openrouter
           aiModel = model
-          maxTokens = 1500 // Reduced for better reliability
+          maxTokens = 1500
           break
 
         case "ollama":
-          aiClient = ollama
+          // Use custom Ollama URL if provided, otherwise use environment variable
+          const baseUrl = ollamaUrl || process.env.OLLAMA_BASE_URL || "http://localhost:11434/"
+          console.log("Using Ollama URL:", baseUrl)
+
+          const ollamaClient = createOpenAI({
+            apiKey: "ollama",
+            baseURL: baseUrl,
+          })
+          aiClient = ollamaClient
           aiModel = model
           maxTokens = 2000
           break
@@ -315,7 +307,7 @@ Provide clear, helpful, and accurate responses. If you're referencing uploaded d
       console.log("Creating AI stream with:", { provider, model, maxTokens })
       console.log("System prompt length:", systemPrompt.length)
 
-      // Test the API connection first for OpenRouter
+      // Test connections with better error handling
       if (provider === "openrouter") {
         try {
           console.log("Testing OpenRouter connection...")
@@ -325,10 +317,14 @@ Provide clear, helpful, and accurate responses. If you're referencing uploaded d
               "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
               "X-Title": "CaaSAssist",
             },
+            signal: AbortSignal.timeout(10000),
           })
 
           if (!testResponse.ok) {
-            throw new Error(`OpenRouter API test failed: ${testResponse.status} ${testResponse.statusText}`)
+            const errorText = await testResponse.text()
+            throw new Error(
+              `OpenRouter API test failed: ${testResponse.status} ${testResponse.statusText} - ${errorText}`,
+            )
           }
           console.log("OpenRouter connection test passed")
         } catch (testError: any) {
@@ -337,6 +333,7 @@ Provide clear, helpful, and accurate responses. If you're referencing uploaded d
             JSON.stringify({
               error: "OpenRouter connection failed",
               details: testError.message,
+              suggestion: "Check your API key and internet connection",
             }),
             {
               status: 503,
@@ -346,38 +343,82 @@ Provide clear, helpful, and accurate responses. If you're referencing uploaded d
         }
       }
 
-      // Test Ollama connection
       if (provider === "ollama") {
         try {
-          console.log("Testing Ollama connection...")
-          const testResponse = await fetch(`${process.env.OLLAMA_BASE_URL || "http://localhost:11434"}/api/tags`, {
+          // Normalize the base URL
+          let baseUrl = (ollamaUrl || process.env.OLLAMA_BASE_URL || "http://localhost:11434").trim()
+          // Ensure base URL doesn't end with a slash
+          baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+          
+          // Remove /v1 if present and add /api/tags
+          const testUrl = `${baseUrl.replace('/v1', '')}/api/tags`
+          console.log("Testing Ollama connection at:", testUrl)
+
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
+          const testResponse = await fetch(testUrl, {
             method: "GET",
-            signal: AbortSignal.timeout(5000),
-          })
+            signal: controller.signal,
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
+          }).finally(() => clearTimeout(timeout))
 
           if (!testResponse.ok) {
-            throw new Error(`Ollama server not responding: ${testResponse.status}`)
+            const errorText = await testResponse.text()
+            console.error('Ollama API error:', {
+              status: testResponse.status,
+              statusText: testResponse.statusText,
+              errorText
+            })
+            throw new Error(`Ollama server error: ${testResponse.status} ${testResponse.statusText} - ${errorText}`)
           }
 
-          const data = await testResponse.json()
-          const availableModels = data.models?.map((m: any) => m.name) || []
+          let data
+          try {
+            data = await testResponse.json()
+          } catch (parseError) {
+            console.error('Failed to parse Ollama response:', parseError)
+            throw new Error('Received invalid JSON response from Ollama server')
+          }
 
-          if (!availableModels.includes(model)) {
+          const availableModels = data.models?.map((m: any) => m.name) || []
+          console.log('Available Ollama models:', availableModels)
+
+          // Check if the requested model is available
+          const modelExists = availableModels.some((m: string) => m.toLowerCase() === model.toLowerCase())
+          
+          if (!modelExists) {
             throw new Error(
-              `Model "${model}" not found. Available models: ${availableModels.join(", ")}. Run: ollama pull ${model}`,
+              `Model "${model}" not found. Available models: ${availableModels.join(", ") || 'none'}.\n` +
+              `To download the model, run: ollama pull ${model}`
             )
           }
 
           console.log("Ollama connection test passed, model available")
         } catch (testError: any) {
           console.error("Ollama connection test failed:", testError)
+          
+          // Provide more specific error messages
+          let errorMessage = testError.message
+          let suggestion = "Make sure Ollama is running and accessible"
+          
+          if (testError.name === 'AbortError') {
+            errorMessage = "Connection to Ollama server timed out"
+            suggestion = "Check if Ollama is running and the URL is correct"
+          } else if (testError.message.includes('ECONNREFUSED') || testError.message.includes('Failed to fetch')) {
+            errorMessage = "Could not connect to Ollama server"
+            suggestion = `Make sure Ollama is running and accessible at ${ollamaUrl || 'http://localhost:11434'}`
+          }
+          
           return new Response(
             JSON.stringify({
               error: "Ollama connection failed",
-              details: testError.message,
-              suggestion: testError.message.includes("not found")
-                ? `Run: ollama pull ${model}`
-                : "Make sure Ollama is running with: ollama serve",
+              details: errorMessage,
+              suggestion: suggestion,
+              type: 'ollama_connection_error'
             }),
             {
               status: 503,
@@ -387,15 +428,16 @@ Provide clear, helpful, and accurate responses. If you're referencing uploaded d
         }
       }
 
-      // Create the stream with enhanced error handling
+      // Create the stream with enhanced error handling and retry logic
+      console.log("Creating AI stream...")
+
       const result = await streamText({
         model: aiClient(aiModel),
         system: systemPrompt,
         messages: cleanMessages,
         temperature: 0.7,
         maxTokens,
-        // Add timeout and retry settings
-        abortSignal: AbortSignal.timeout(30000), // 30 second timeout
+        abortSignal: AbortSignal.timeout(45000), // 45 second timeout
       })
 
       console.log("AI stream created successfully")
@@ -418,50 +460,48 @@ Provide clear, helpful, and accurate responses. If you're referencing uploaded d
       console.error("Error:", aiError)
       console.error("Error message:", aiError.message)
       console.error("Error name:", aiError.name)
-      console.error("Error stack:", aiError.stack?.substring(0, 500))
+      console.error("Error cause:", aiError.cause)
 
-      // Handle specific AI errors with detailed messages
+      // Enhanced error handling with specific messages
       let errorMessage = "AI service error"
       let errorDetails = ""
       let statusCode = 500
 
-      if (provider === "openrouter") {
-        if (
-          aiError.message?.includes("API key") ||
-          aiError.message?.includes("401") ||
-          aiError.message?.includes("Unauthorized")
-        ) {
-          errorMessage = "OpenRouter API key invalid"
-          errorDetails = "Your OpenRouter API key is invalid or expired. Get a new one at https://openrouter.ai/"
+      // Handle AI SDK specific errors
+      if (aiError.name === "AI_APICallError" || aiError.name === "APICallError") {
+        if (aiError.message?.includes("API key") || aiError.statusCode === 401) {
+          errorMessage = `${provider} API key invalid`
+          errorDetails = `Your ${provider} API key is invalid or expired`
           statusCode = 401
-        } else if (aiError.message?.includes("rate limit") || aiError.message?.includes("429")) {
-          errorMessage = "OpenRouter rate limit exceeded"
+        } else if (aiError.statusCode === 429) {
+          errorMessage = `${provider} rate limit exceeded`
           errorDetails = "Please wait a moment and try again"
           statusCode = 429
-        } else if (aiError.message?.includes("quota") || aiError.message?.includes("402")) {
-          errorMessage = "OpenRouter quota exceeded"
-          errorDetails = "Check your OpenRouter billing settings"
+        } else if (aiError.statusCode === 402) {
+          errorMessage = `${provider} quota exceeded`
+          errorDetails = `Check your ${provider} billing settings`
           statusCode = 402
-        } else if (aiError.message?.includes("model") || aiError.message?.includes("404")) {
-          errorMessage = "Model not available on OpenRouter"
-          errorDetails = `Model "${model}" may be temporarily unavailable. Try: meta-llama/llama-3.2-3b-instruct:free`
+        } else if (aiError.statusCode === 404) {
+          errorMessage = "Model not available"
+          errorDetails = `Model "${model}" may be temporarily unavailable on ${provider}`
           statusCode = 404
-        } else if (aiError.message?.includes("timeout") || aiError.name === "TimeoutError") {
-          errorMessage = "OpenRouter request timeout"
-          errorDetails = "The request took too long. Try again or switch models."
-          statusCode = 408
-        } else if (aiError.message?.includes("fetch") || aiError.message?.includes("network")) {
-          errorMessage = "OpenRouter network error"
-          errorDetails = "Cannot connect to OpenRouter. Check your internet connection."
-          statusCode = 503
         } else {
-          errorMessage = "OpenRouter streaming failed"
-          errorDetails = aiError.message || "Unknown OpenRouter error during streaming"
+          errorMessage = `${provider} API error`
+          errorDetails = aiError.message || `Unknown ${provider} API error`
+          statusCode = aiError.statusCode || 500
         }
+      } else if (aiError.name === "AbortError" || aiError.message?.includes("timeout")) {
+        errorMessage = "Request timeout"
+        errorDetails = "The AI request took too long. Try again or switch models."
+        statusCode = 408
+      } else if (aiError.message?.includes("fetch") || aiError.message?.includes("network")) {
+        errorMessage = "Network error"
+        errorDetails = `Cannot connect to ${provider}. Check your internet connection.`
+        statusCode = 503
       } else if (provider === "ollama") {
-        if (aiError.message?.includes("fetch") || aiError.message?.includes("ECONNREFUSED")) {
+        if (aiError.message?.includes("ECONNREFUSED") || aiError.message?.includes("fetch")) {
           errorMessage = "Ollama server not running"
-          errorDetails = "Start Ollama with: ollama serve"
+          errorDetails = "Cannot connect to Ollama server. Make sure it's running and accessible."
           statusCode = 503
         } else if (aiError.message?.includes("model") || aiError.message?.includes("404")) {
           errorMessage = "Ollama model not found"
@@ -469,29 +509,10 @@ Provide clear, helpful, and accurate responses. If you're referencing uploaded d
           statusCode = 404
         } else {
           errorMessage = "Ollama connection failed"
-          errorDetails = aiError.message || "Check if Ollama is running"
+          errorDetails = aiError.message || "Check if Ollama is running and accessible"
         }
-      } else if (provider === "openai") {
-        if (aiError.message?.includes("API key") || aiError.message?.includes("401")) {
-          errorMessage = "Invalid OpenAI API key"
-          errorDetails = "Check your OPENAI_API_KEY environment variable"
-          statusCode = 401
-        } else if (aiError.message?.includes("rate limit") || aiError.message?.includes("429")) {
-          errorMessage = "OpenAI rate limit exceeded"
-          errorDetails = "Please wait a moment and try again"
-          statusCode = 429
-        } else if (aiError.message?.includes("quota") || aiError.message?.includes("402")) {
-          errorMessage = "OpenAI quota exceeded"
-          errorDetails = "Check your OpenAI billing settings"
-          statusCode = 402
-        } else {
-          errorMessage = "OpenAI connection failed"
-          errorDetails = aiError.message || "Unknown OpenAI error"
-        }
-      }
-
-      // If we still have a generic error, provide more details
-      if (errorMessage === "AI service error") {
+      } else {
+        // Generic error handling
         errorMessage = aiError.message || "Unknown AI service error"
         errorDetails = `Provider: ${provider}, Model: ${model}, Error: ${aiError.name || "Unknown"}`
       }

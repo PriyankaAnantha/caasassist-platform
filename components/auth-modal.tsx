@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogDescription } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Mail, Lock, User } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
@@ -69,14 +69,11 @@ export function AuthModal({ open, onOpenChange, mode, onModeChange }: AuthModalP
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
-        <DialogDescription className="sr-only">
-          {mode === "signin" ? "Sign in to your account" : "Create a new account"}
-        </DialogDescription>
         <Card className="border-0 shadow-none">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+            <DialogTitle className="text-2xl bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
               {mode === "signin" ? "Welcome Back" : "Create Account"}
-            </CardTitle>
+            </DialogTitle>
             <CardDescription>
               {mode === "signin" ? "Sign in to your CaaSAssist account" : "Get started with CaaSAssist today"}
             </CardDescription>

@@ -28,7 +28,7 @@ export interface ModelOption {
   description: string
   free?: boolean
   requiresSetup?: boolean
-  working?: boolean // Add status indicator
+  working?: boolean
 }
 
 export const AVAILABLE_MODELS: ModelOption[] = [
@@ -91,7 +91,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     provider: "openrouter",
     description: "Vision-capable Llama model - free but may be unstable",
     free: true,
-    working: false, // Mark as potentially problematic
+    working: false,
   },
   {
     id: "google/gemma-2-27b-it:free",
@@ -102,7 +102,53 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     working: false,
   },
 
-  // Ollama Local Models (require Ollama to be running)
+  // Ollama Local Models (require Ollama to be running) - Updated with your available models
+  {
+    id: "mistral:7b",
+    name: "Mistral 7B (Local)",
+    provider: "ollama",
+    description: "Local Mistral 7B model - you have this installed ✅",
+    free: true,
+    requiresSetup: true,
+    working: true,
+  },
+  {
+    id: "mistral:latest",
+    name: "Mistral Latest (Local)",
+    provider: "ollama",
+    description: "Local Mistral latest model - you have this installed ✅",
+    free: true,
+    requiresSetup: true,
+    working: true,
+  },
+  {
+    id: "qwen:7b",
+    name: "Qwen 7B (Local)",
+    provider: "ollama",
+    description: "Local Qwen 7B model - you have this installed ✅",
+    free: true,
+    requiresSetup: true,
+    working: true,
+  },
+  {
+    id: "llama3:latest",
+    name: "Llama 3 Latest (Local)",
+    provider: "ollama",
+    description: "Local Llama 3 latest model - you have this installed ✅",
+    free: true,
+    requiresSetup: true,
+    working: true,
+  },
+  {
+    id: "phi:latest",
+    name: "Phi Latest (Local)",
+    provider: "ollama",
+    description: "Local Phi latest model - you have this installed ✅",
+    free: true,
+    requiresSetup: true,
+    working: true,
+  },
+  // Additional common models that might be pulled
   {
     id: "llama3.2:3b",
     name: "Llama 3.2 3B (Local)",
@@ -122,37 +168,10 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     working: true,
   },
   {
-    id: "llama3.1:8b",
-    name: "Llama 3.1 8B (Local)",
-    provider: "ollama",
-    description: "Local Llama 3.1 8B model - requires 'ollama pull llama3.1:8b'",
-    free: true,
-    requiresSetup: true,
-    working: true,
-  },
-  {
-    id: "mistral:7b",
-    name: "Mistral 7B (Local)",
-    provider: "ollama",
-    description: "Local Mistral 7B model - requires 'ollama pull mistral:7b'",
-    free: true,
-    requiresSetup: true,
-    working: true,
-  },
-  {
     id: "codellama:7b",
     name: "Code Llama 7B (Local)",
     provider: "ollama",
     description: "Local Code Llama for programming - requires 'ollama pull codellama:7b'",
-    free: true,
-    requiresSetup: true,
-    working: true,
-  },
-  {
-    id: "qwen2.5:7b",
-    name: "Qwen 2.5 7B (Local)",
-    provider: "ollama",
-    description: "Local Qwen 2.5 model - requires 'ollama pull qwen2.5:7b'",
     free: true,
     requiresSetup: true,
     working: true,
@@ -172,6 +191,7 @@ interface ChatState {
   isStreaming: boolean
   selectedModel: string
   selectedProvider: AIProvider
+  ollamaUrl: string
 
   // Actions
   setCurrentSession: (session: ChatSession | null) => void
@@ -186,6 +206,7 @@ interface ChatState {
   setIsStreaming: (streaming: boolean) => void
   setSelectedModel: (model: string) => void
   setSelectedProvider: (provider: AIProvider) => void
+  setOllamaUrl: (url: string) => void
   clearCurrentChat: () => void
 }
 
@@ -198,8 +219,9 @@ export const useChatStore = create<ChatState>()(
       sessions: [],
       isLoading: false,
       isStreaming: false,
-      selectedModel: "meta-llama/llama-3.2-3b-instruct:free", // Confirmed working
+      selectedModel: "meta-llama/llama-3.2-3b-instruct:free", // Keep OpenRouter as default
       selectedProvider: "openrouter",
+      ollamaUrl: "http://localhost:11434",
 
       // Actions
       setCurrentSession: (session) => set({ currentSession: session }),
@@ -251,6 +273,7 @@ export const useChatStore = create<ChatState>()(
         }
       },
       setSelectedProvider: (selectedProvider) => set({ selectedProvider }),
+      setOllamaUrl: (ollamaUrl) => set({ ollamaUrl }),
 
       clearCurrentChat: () =>
         set({
@@ -264,6 +287,7 @@ export const useChatStore = create<ChatState>()(
         selectedModel: state.selectedModel,
         selectedProvider: state.selectedProvider,
         sessions: state.sessions,
+        ollamaUrl: state.ollamaUrl,
       }),
     },
   ),

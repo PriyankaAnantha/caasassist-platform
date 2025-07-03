@@ -6,6 +6,7 @@ import { UserMenu } from "@/components/user-menu"
 import { ModelSelector } from "@/components/model-selector"
 import { useChatStore } from "@/lib/stores/chat-store"
 import { MessageSquare, History, FileText } from "lucide-react"
+import { OllamaStatusIcon } from "@/components/ollama-status-icon"
 
 interface ChatHeaderProps {
   onToggleHistory: () => void
@@ -55,6 +56,8 @@ export function ChatHeader({ onToggleHistory, onToggleDocuments }: ChatHeaderPro
           >
             <FileText className="w-4 h-4" />
           </Button>
+
+          <OllamaStatusIcon />
 
           <ThemeToggle />
           <UserMenu />
