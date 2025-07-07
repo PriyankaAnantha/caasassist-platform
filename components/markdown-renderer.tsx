@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -8,73 +8,17 @@ import 'highlight.js/styles/github-dark.css';
 
 interface MarkdownRendererProps {
   content: string;
-  stream?: boolean;
-  streamSpeed?: number;
 }
 
 export function MarkdownRenderer({ 
-  content, 
-  stream = false, 
-  streamSpeed = 5 
+  content 
 }: MarkdownRendererProps) {
-  const [displayedContent, setDisplayedContent] = useState('');
-  const [isStreaming, setIsStreaming] = useState(false);
-
-  useEffect(() => {
-    if (!stream) {
-      setDisplayedContent(content);
-      return;
-    }
-
-    // Reset state when content changes
-    if (displayedContent === '') {
-      setIsStreaming(true);
-    }
-
-    let currentIndex = 0;
-    const contentLength = content.length;
-    let animationFrameId: number;
-
-    const streamContent = () => {
-      if (currentIndex < contentLength) {
-        // Get the next chunk of content
-        const chunkSize = Math.min(streamSpeed, contentLength - currentIndex);
-        const nextChunk = content.substring(currentIndex, currentIndex + chunkSize);
-        
-        setDisplayedContent(prev => prev + nextChunk);
-        currentIndex += chunkSize;
-        
-        // Schedule next chunk
-        animationFrameId = requestAnimationFrame(streamContent);
-      } else {
-        setIsStreaming(false);
-      }
-    };
-
-    // Start streaming after a small delay
-    const timeoutId = setTimeout(() => {
-      animationFrameId = requestAnimationFrame(streamContent);
-    }, 50);
-    
-    return () => {
-      clearTimeout(timeoutId);
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-    };
-  }, [content, stream, streamSpeed, displayedContent]);
-
   return (
-    <div className="relative">
-      {isStreaming && (
-        <div className="absolute right-0 -top-6 bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded">
-          Streaming...
-        </div>
-      )}
+    <div className="markdown-content">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
-        children={stream ? displayedContent : content}
+        children={content}
         components={{
           // Custom components can be added here
           h1: ({ node, ...props }) => <h1 className="text-2xl font-bold mb-3 mt-6" {...props} />,

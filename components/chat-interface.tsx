@@ -662,11 +662,7 @@ export function ChatInterface() {
                       }`}
                     >
                       <div className="prose prose-sm max-w-none dark:prose-invert">
-                        <MarkdownRenderer 
-                          content={message.content} 
-                          stream={isStreaming && message.role === 'assistant' && messages[messages.length - 1]?.id === message.id}
-                          streamSpeed={5}
-                        />
+                        <MarkdownRenderer content={message.content} />
                       </div>
                     </Card>
 
