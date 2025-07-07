@@ -271,6 +271,7 @@ Avoid raw bullet-point lists unless absolutely necessary. Use clear structure an
     let aiClient
     let aiModel
     let maxTokens = 1000
+    let baseUrl = ""
 
     try {
       switch (provider) {
@@ -287,17 +288,78 @@ Avoid raw bullet-point lists unless absolutely necessary. Use clear structure an
           break
 
         case "ollama":
-          // Use custom Ollama URL if provided, otherwise use environment variable
-          const baseUrl = ollamaUrl || process.env.OLLAMA_BASE_URL || "http://localhost:11434/"
-          console.log("Using Ollama URL:", baseUrl)
+          try {
+            // Use custom Ollama URL if provided, otherwise use environment variable
+            baseUrl = (ollamaUrl || process.env.OLLAMA_BASE_URL || "http://localhost:11434").trim()
+            // Ensure base URL doesn't end with a slash and doesn't include /v1
+            baseUrl = baseUrl.replace(/\/+$/, '').replace(/\/v1$/, '')
+            
+            console.log("Using Ollama URL:", baseUrl)
 
-          const ollamaClient = createOpenAI({
-            apiKey: "ollama",
-            baseURL: baseUrl,
-          })
-          aiClient = ollamaClient
-          aiModel = model
-          maxTokens = 2000
+            // First, verify Ollama server is reachable
+            const healthCheckUrl = `${baseUrl}/api/tags`
+            console.log("Checking Ollama server health at:", healthCheckUrl)
+            
+            const healthResponse = await fetch(healthCheckUrl, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+              }
+            })
+
+            if (!healthResponse.ok) {
+              const errorText = await healthResponse.text()
+              throw new Error(`Ollama server returned ${healthResponse.status}: ${errorText}`)
+            }
+
+            // Parse the response to check available models
+            const healthData = await healthResponse.json()
+            const availableModels = healthData.models?.map((m: any) => m.name) || []
+            console.log("Available Ollama models:", availableModels)
+
+            // Determine the model name with fallback
+            const targetModel = model.includes(':') ? model : `${model}:latest`
+            
+            // Check if the requested model is available
+            const modelExists = availableModels.some((m: string) => 
+              m.toLowerCase() === targetModel.toLowerCase()
+            )
+            
+            if (!modelExists) {
+              throw new Error(
+                `Model "${targetModel}" not found. Available models: ${availableModels.join(', ') || 'none'}.\n` +
+                `To download the model, run: ollama pull ${model}`
+              )
+            }
+
+            // Create the Ollama client
+            const ollamaClient = createOpenAI({
+              apiKey: "ollama", // Dummy key, not used by Ollama
+              baseURL: `${baseUrl}/v1`, // Add /v1 for OpenAI compatibility
+            })
+            
+            aiClient = ollamaClient
+            aiModel = targetModel
+            maxTokens = 2000
+            
+            console.log("Ollama client configured with model:", aiModel)
+          } catch (error: any) {
+            console.error("Error configuring Ollama client:", error)
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+            return new Response(
+              JSON.stringify({
+                error: "Ollama Configuration Error",
+                details: errorMessage,
+                suggestion: "Please check if Ollama is running and the model is downloaded",
+                type: "ollama_config_error"
+              }),
+              {
+                status: 500,
+                headers: { "Content-Type": "application/json" },
+              }
+            )
+          }
           break
 
         default:

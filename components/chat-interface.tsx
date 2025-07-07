@@ -65,10 +65,10 @@ export function ChatInterface() {
   } = useChat({
     api: "/api/chat",
     body: {
-      model: selectedModel,
+      model: selectedProvider === "ollama" ? (selectedModel.includes(':') ? selectedModel : `${selectedModel}:latest`) : selectedModel,
       provider: selectedProvider,
       sessionId: currentSession?.id,
-      ollamaUrl: selectedProvider === "ollama" ? ollamaUrl : undefined, // Add this
+      ollamaUrl: selectedProvider === "ollama" ? ollamaUrl : undefined,
     },
     headers: {
       "Content-Type": "application/json",
@@ -90,33 +90,76 @@ export function ChatInterface() {
         }
       }
     },
-    onError: async (rawError) => {
+    onError: async (rawError: unknown) => {
+      console.error("=== CHAT ERROR HANDLER TRIGGERED ===");
+      console.error("Raw error:", rawError);
+      
       setIsStreaming(false)
       setGlobalIsStreaming(false)
       
-      // Try to parse the error response if it's a Response object
-      let errorDetails = { message: '', details: '', suggestion: '', type: '' }
+      // Default error details
+      let errorDetails = { 
+        message: 'An unknown error occurred', 
+        details: '', 
+        suggestion: 'Please try again later', 
+        type: 'unknown_error' 
+      }
       
       try {
+        // Handle Response objects (API errors)
         if (rawError && typeof rawError === 'object' && 'json' in rawError) {
-          const errorResponse = rawError as Response
-          const errorData = await errorResponse.json().catch(() => ({}))
-          errorDetails = {
-            message: errorData.error || 'Unknown error',
-            details: errorData.details || '',
-            suggestion: errorData.suggestion || '',
-            type: errorData.type || 'unknown_error'
+          try {
+            // Safely cast to Response-like object
+            const errorResponse = rawError as { json: () => Promise<any>; status?: number; statusText?: string }
+            const errorData = await errorResponse.json()
+            console.log("Error response data:", errorData)
+            
+            errorDetails = {
+              message: errorData.error || 'API Error',
+              details: errorData.details || `Status: ${errorResponse.status} ${errorResponse.statusText}`,
+              suggestion: errorData.suggestion || 'Please check your connection and try again',
+              type: errorData.type || 'api_error'
+            }
+          } catch (parseError) {
+            console.error("Error parsing error response:", parseError)
+            errorDetails = {
+              message: 'Invalid server response',
+              details: 'The server returned an invalid response format',
+              suggestion: 'Please check the server logs',
+              type: 'invalid_response'
+            }
           }
-        } else if (rawError instanceof Error) {
+        } 
+        // Handle Error objects
+        else if (rawError instanceof Error) {
+          console.error("Error object:", rawError)
           errorDetails = {
-            message: rawError.message,
-            details: '',
-            suggestion: 'An unexpected error occurred',
-            type: 'unexpected_error'
+            message: rawError.message || 'An error occurred',
+            details: rawError.stack ? rawError.stack.split('\n').slice(0, 3).join('\n') : '',
+            suggestion: 'Please check your network connection and try again',
+            type: 'client_error'
           }
+          
+          // Handle common network errors
+          if (rawError.message.includes('Failed to fetch') || 
+              rawError.message.includes('NetworkError') ||
+              rawError.message.includes('ECONNREFUSED')) {
+            errorDetails.message = 'Connection failed'
+            errorDetails.details = 'Could not connect to the server'
+            errorDetails.suggestion = 'Please check if the server is running and accessible'
+            errorDetails.type = 'connection_error'
+          }
+        } else {
+          console.error("Unknown error format:", rawError)
         }
-      } catch (parseError) {
-        console.error('Error parsing error response:', parseError)
+      } catch (error) {
+        console.error('Critical error in error handler:', error)
+        errorDetails = {
+          message: 'Critical error',
+          details: 'An unexpected error occurred while processing the error',
+          suggestion: 'Please refresh the page and try again',
+          type: 'critical_error'
+        }
       }
 
       // Safe error logging to prevent serialization issues
