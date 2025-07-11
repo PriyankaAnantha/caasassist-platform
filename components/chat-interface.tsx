@@ -52,11 +52,14 @@ export function ChatInterface() {
   // Local state for streaming to handle UI updates more responsively
   const [isStreaming, setIsStreaming] = useState(false)
 
+  const [isRetrying, setIsRetrying] = useState(false)
+  const [lastError, setLastError] = useState<Error | null>(null)
+
   const {
     messages,
     input,
     handleInputChange,
-    handleSubmit,
+    handleSubmit: originalHandleSubmit,
     isLoading,
     stop,
     setMessages: setChatMessages,
@@ -94,15 +97,20 @@ export function ChatInterface() {
       console.error("=== CHAT ERROR HANDLER TRIGGERED ===");
       console.error("Raw error:", rawError);
       
-      setIsStreaming(false)
-      setGlobalIsStreaming(false)
+      // Don't update state if we're retrying
+      if (!isRetrying) {
+        setIsStreaming(false)
+        setGlobalIsStreaming(false)
+      }
       
       // Default error details
       let errorDetails = { 
         message: 'An unknown error occurred', 
         details: '', 
         suggestion: 'Please try again later', 
-        type: 'unknown_error' 
+        type: 'unknown_error',
+        isStreamError: false,
+        canRetry: true
       }
       
       try {
@@ -114,11 +122,15 @@ export function ChatInterface() {
             const errorData = await errorResponse.json()
             console.log("Error response data:", errorData)
             
+            const isStreamError = errorData.error?.includes('stream')
+            
             errorDetails = {
               message: errorData.error || 'API Error',
               details: errorData.details || `Status: ${errorResponse.status} ${errorResponse.statusText}`,
               suggestion: errorData.suggestion || 'Please check your connection and try again',
-              type: errorData.type || 'api_error'
+              type: errorData.type || 'api_error',
+              isStreamError,
+              canRetry: isStreamError || retryCount < 3
             }
           } catch (parseError) {
             console.error("Error parsing error response:", parseError)
@@ -224,6 +236,9 @@ export function ChatInterface() {
         } else if (errorMessage.includes('model not found')) {
           errorMessage = `Model "${selectedModel}" not found in Ollama`
           suggestion = `Run: ollama pull ${selectedModel}`
+        } else if (errorMessage.includes('stream') || errorDetails.isStreamError) {
+          errorMessage = "Error in streaming response"
+          suggestion = retryCount < 3 ? "The response was interrupted. Would you like to retry?" : "Please try again with a different query."
         } else {
           errorMessage = errorMessage || "Ollama error occurred"
           suggestion = "Check the Ollama server logs for more details"
@@ -367,13 +382,15 @@ export function ChatInterface() {
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
-    if (!input.trim()) return
+    if (!input.trim() || isStreaming) return
 
     console.log("Submitting message...")
 
-    // Clear any previous errors
+    // Clear any previous errors and reset retry state
     setConnectionError("")
     setDebugInfo(null)
+    setLastError(null)
+    setRetryCount(0)
 
     // Create session if none exists
     if (!currentSession) {
@@ -381,8 +398,6 @@ export function ChatInterface() {
       await createNewSession()
       return
     }
-
-    setIsStreaming(true)
 
     // Save user message first
     if (user) {
@@ -397,7 +412,20 @@ export function ChatInterface() {
     try {
       setIsStreaming(true)
       setGlobalIsStreaming(true)
-      handleSubmit(e)
+      
+      // Create a new form event with the current input
+      const formEvent = {
+        ...e,
+        preventDefault: () => e.preventDefault(),
+        currentTarget: {
+          ...e.currentTarget,
+          elements: {
+            message: { value: input }
+          }
+        }
+      } as unknown as React.FormEvent<HTMLFormElement>
+      
+      await originalHandleSubmit(formEvent)
     } catch (submitError) {
       console.error("Submit error:", submitError)
       setIsStreaming(false)
@@ -406,18 +434,35 @@ export function ChatInterface() {
     }
   }
 
-  const handleRetry = () => {
+  const handleRetry = async () => {
     console.log("Retrying chat...")
     setConnectionError("")
     setDebugInfo(null)
+    setIsRetrying(true)
+    setRetryCount(prev => prev + 1)
 
-    if (messages.length > 0) {
-      try {
-        reload()
-      } catch (reloadError) {
-        console.error("Reload error:", reloadError)
-        setConnectionError("Failed to retry")
+    try {
+      if (messages.length > 0) {
+        // If we have a last error that's a stream error, try a fresh request
+        if (lastError?.message?.includes('stream') || lastError?.message?.includes('Unexpected end of JSON input')) {
+          console.log("Stream error detected, creating new request...")
+          const lastUserMessage = messages.findLast(m => m.role === 'user')
+          if (lastUserMessage) {
+            setChatMessages(messages.filter(m => m.role !== 'assistant' || !m.content.includes('Error in stream')))
+            await new Promise(resolve => setTimeout(resolve, 500)) // Small delay to ensure state updates
+            await originalHandleSubmit({ preventDefault: () => {} } as React.FormEvent, { data: { message: lastUserMessage.content } })
+          } else {
+            await reload()
+          }
+        } else {
+          await reload()
+        }
       }
+    } catch (reloadError) {
+      console.error("Reload error:", reloadError)
+      setConnectionError("Failed to retry. Please try again.")
+    } finally {
+      setIsRetrying(false)
     }
   }
 
@@ -561,19 +606,38 @@ export function ChatInterface() {
               <AlertDescription className="flex items-center justify-between">
                 <span className="flex-1">{connectionError}</span>
                 <div className="flex gap-2 ml-2">
-                  {retryCount < 3 && !connectionError.includes("✅") && (
-                    <Button variant="ghost" size="sm" onClick={handleRetry}>
-                      <RefreshCw className="h-3 w-3 mr-1" />
-                      Retry
-                    </Button>
+                  {!connectionError.includes("✅") && (
+                    <>
+                      {(retryCount < 3 || connectionError.includes('retry')) && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={handleRetry}
+                          disabled={isLoading || isRetrying}
+                        >
+                          <RefreshCw className={`h-3 w-3 mr-1 ${isRetrying ? 'animate-spin' : ''}`} />
+                          {isRetrying ? 'Retrying...' : 'Retry'}
+                        </Button>
+                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={testChatAPI}
+                        disabled={isLoading || isRetrying}
+                      >
+                        <Bug className="h-3 w-3 mr-1" />
+                        Test
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setConnectionError("")}
+                        disabled={isLoading || isRetrying}
+                      >
+                        ×
+                      </Button>
+                    </>
                   )}
-                  <Button variant="ghost" size="sm" onClick={testChatAPI}>
-                    <Bug className="h-3 w-3 mr-1" />
-                    Test
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setConnectionError("")}>
-                    ×
-                  </Button>
                 </div>
               </AlertDescription>
             </Alert>
