@@ -81,8 +81,18 @@ export function ChatHistory({ open, onOpenChange, onNewChat, onSessionSelect }: 
       console.log(`Loaded ${data?.length || 0} sessions`)
 
       // Process sessions with message counts
+      interface Session {
+        id: string;
+        title: string;
+        model: string;
+        provider?: string;
+        created_at: string;
+        updated_at: string;
+        user_id: string;
+      }
+
       const sessionsWithCounts = await Promise.all(
-        (data || []).map(async (session) => {
+        (data || [] as Session[]).map(async (session: Session) => {
           let messageCount = 0
           try {
             const { count } = await supabase

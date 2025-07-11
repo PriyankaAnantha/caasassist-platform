@@ -138,7 +138,9 @@ export function ChatInterface() {
               message: 'Invalid server response',
               details: 'The server returned an invalid response format',
               suggestion: 'Please check the server logs',
-              type: 'invalid_response'
+              type: 'invalid_response',
+              isStreamError: false,
+              canRetry: retryCount < 3
             }
           }
         } 
@@ -149,7 +151,9 @@ export function ChatInterface() {
             message: rawError.message || 'An error occurred',
             details: rawError.stack ? rawError.stack.split('\n').slice(0, 3).join('\n') : '',
             suggestion: 'Please check your network connection and try again',
-            type: 'client_error'
+            type: 'client_error',
+            isStreamError: rawError.message.includes('stream') || rawError.message.includes('Unexpected end of JSON input'),
+            canRetry: retryCount < 3
           }
           
           // Handle common network errors
@@ -170,7 +174,9 @@ export function ChatInterface() {
           message: 'Critical error',
           details: 'An unexpected error occurred while processing the error',
           suggestion: 'Please refresh the page and try again',
-          type: 'critical_error'
+          type: 'critical_error',
+          isStreamError: false,
+          canRetry: false
         }
       }
 
