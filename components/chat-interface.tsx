@@ -37,12 +37,14 @@ export function ChatInterface() {
 
   const {
     currentSession,
+    sessions,
     messages: storeMessages,
     isStreaming: isStreamingGlobal,
     selectedModel,
     selectedProvider,
     ollamaUrl,
     setCurrentSession,
+    setSessions,
     setMessages,
     addMessage,
     setIsStreaming: setGlobalIsStreaming,
@@ -271,20 +273,66 @@ export function ChatInterface() {
   })
 
   const saveMessage = async (content: string, role: "user" | "assistant", sessionId: string) => {
-    if (!user || !sessionId) return
+    if (!user || !sessionId) return;
 
     try {
+      // Save the message
       const { error } = await supabase.from("chat_messages").insert({
         session_id: sessionId,
         role,
         content,
         user_id: user.id,
-      })
+      });
 
-      if (error) throw error
+      if (error) throw error;
+
+      // After saving, check if we need to clean up the session
+      if (role === "assistant") {
+        // Get all messages for this session
+        const { data: messages, error: messagesError } = await supabase
+          .from("chat_messages")
+          .select("*")
+          .eq("session_id", sessionId)
+          .order("created_at", { ascending: true });
+
+        if (messagesError) throw messagesError;
+
+        // If there are fewer than 2 messages, delete the session
+        if (messages.length < 2) {
+          console.log("Deleting session with fewer than 2 messages");
+          
+          // Delete all messages first
+          await supabase
+            .from("chat_messages")
+            .delete()
+            .eq("session_id", sessionId);
+          
+          // Then delete the session
+          await supabase
+            .from("chat_sessions")
+            .delete()
+            .eq("id", sessionId);
+          
+          // If this was the current session, create a new one
+          if (currentSession?.id === sessionId) {
+            await createNewSession();
+          }
+          
+          // Update the sessions list
+          const { data: sessions } = await supabase
+            .from("chat_sessions")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("updated_at", { ascending: false });
+          
+          if (sessions) {
+            setSessions(sessions);
+          }
+        }
+      }
     } catch (error) {
-      console.error("Error saving message:", error)
-      throw error
+      console.error("Error in saveMessage:", error);
+      throw error;
     }
   }
 
