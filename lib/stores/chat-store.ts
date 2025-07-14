@@ -192,6 +192,13 @@ interface ChatState {
   selectedModel: string
   selectedProvider: AIProvider
   ollamaUrl: string
+  
+  // API Keys
+  apiKeys: {
+    openai?: string
+    openrouter?: string
+    ollama?: string
+  }
 
   // Actions
   setCurrentSession: (session: ChatSession | null) => void
@@ -207,6 +214,8 @@ interface ChatState {
   setSelectedModel: (model: string) => void
   setSelectedProvider: (provider: AIProvider) => void
   setOllamaUrl: (url: string) => void
+  setApiKey: (provider: keyof ChatState['apiKeys'], key: string) => void
+  clearApiKey: (provider: keyof ChatState['apiKeys']) => void
   clearCurrentChat: () => void
 }
 
@@ -219,9 +228,14 @@ export const useChatStore = create<ChatState>()(
       sessions: [],
       isLoading: false,
       isStreaming: false,
-      selectedModel: "meta-llama/llama-3.2-3b-instruct:free", // Keep OpenRouter as default
+      selectedModel: "meta-llama/llama-3.2-3b-instruct:free",
       selectedProvider: "openrouter",
       ollamaUrl: "http://localhost:11434",
+      apiKeys: {
+        openai: "",
+        openrouter: "",
+        ollama: ""
+      },
 
       // Actions
       setCurrentSession: (session) => set({ currentSession: session }),
@@ -274,7 +288,19 @@ export const useChatStore = create<ChatState>()(
       },
       setSelectedProvider: (selectedProvider) => set({ selectedProvider }),
       setOllamaUrl: (ollamaUrl) => set({ ollamaUrl }),
-
+      setApiKey: (provider, key) =>
+        set((state) => ({
+          apiKeys: {
+            ...state.apiKeys,
+            [provider]: key,
+          },
+        })),
+      clearApiKey: (provider) =>
+        set((state) => {
+          const newKeys = { ...state.apiKeys }
+          delete newKeys[provider]
+          return { apiKeys: newKeys }
+        }),
       clearCurrentChat: () =>
         set({
           currentSession: null,

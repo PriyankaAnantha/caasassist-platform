@@ -16,6 +16,7 @@ import { DocumentManager } from "@/components/document-manager"
 import { MarkdownRenderer } from "./markdown-renderer"
 import { OllamaSetup } from "@/components/ollama-setup"
 import { useChatStore } from "@/lib/stores/chat-store"
+import { useSettingsStore } from "@/lib/stores/settings-store"
 import { useAuth } from "@/components/auth-provider"
 import { createClient } from "@/lib/supabase/client"
 import { Send, Square, Bot, User, Loader2, FileText, AlertCircle, RefreshCw, Bug } from "lucide-react"
@@ -57,6 +58,9 @@ export function ChatInterface() {
   const [isRetrying, setIsRetrying] = useState(false)
   const [lastError, setLastError] = useState<Error | null>(null)
 
+  // Get API keys from settings store
+  const { apiKeys } = useSettingsStore()
+
   const {
     messages,
     input,
@@ -77,6 +81,10 @@ export function ChatInterface() {
     },
     headers: {
       "Content-Type": "application/json",
+      ...(apiKeys.openai && { 'x-openai-key': apiKeys.openai }),
+      ...(apiKeys.openrouter && { 'x-openrouter-key': apiKeys.openrouter }),
+      ...(apiKeys.ollama && { 'x-ollama-key': apiKeys.ollama }),
+      ...(selectedProvider === 'ollama' && ollamaUrl && { 'x-ollama-url': ollamaUrl }),
     },
     onFinish: async (message) => {
       console.log("Chat finished successfully")

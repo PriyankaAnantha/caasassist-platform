@@ -5,15 +5,36 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 export const maxDuration = 30
 
-// Create OpenRouter client
-const openrouter = createOpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY || "",
-  baseURL: "https://openrouter.ai/api/v1",
-  headers: {
-    "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-    "X-Title": "CaaSAssist",
-  },
-})
+// Helper function to get API client with user-provided keys
+function getApiClient(provider: string, apiKey: string, baseUrl?: string) {
+  const baseConfig = {
+    apiKey: apiKey || "",
+    baseURL: baseUrl,
+  }
+
+  switch (provider) {
+    case 'openrouter':
+      return createOpenAI({
+        ...baseConfig,
+        baseURL: baseUrl || "https://openrouter.ai/api/v1",
+        headers: {
+          "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+          "X-Title": "CaaSAssist",
+        },
+      })
+    case 'ollama':
+      return createOpenAI({
+        ...baseConfig,
+        baseURL: baseUrl || "http://localhost:11434/v1",
+      })
+    case 'openai':
+    default:
+      return createOpenAI({
+        ...baseConfig,
+        baseURL: baseUrl || "https://api.openai.com/v1",
+      })
+  }
+}
 
 export async function POST(req: Request) {
   console.log("=== Chat API Request Started ===")
@@ -22,6 +43,12 @@ export async function POST(req: Request) {
     // Parse request body
     const body = await req.json()
     const { messages, model = "gpt-4o-mini", provider = "openai", sessionId, ollamaUrl } = body
+    
+    // Get API keys from headers
+    const openaiKey = req.headers.get('x-openai-key') || ''
+    const openrouterKey = req.headers.get('x-openrouter-key') || ''
+    const ollamaKey = req.headers.get('x-ollama-key') || ''
+    const customOllamaUrl = req.headers.get('x-ollama-url') || ''
 
     console.log("Request details:", {
       messagesCount: messages?.length,
@@ -282,7 +309,7 @@ Avoid raw bullet-point lists unless absolutely necessary. Use clear structure an
           break
 
         case "openrouter":
-          aiClient = openrouter
+          aiClient = getApiClient("openrouter", openrouterKey, "https://openrouter.ai/api/v1")
           aiModel = model
           maxTokens = 1500
           break
