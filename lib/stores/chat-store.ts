@@ -230,9 +230,20 @@ export const useChatStore = create<ChatState>()(
         ollama: ""
       } as const,
       validateModelName: (modelName: string): boolean => {
-        // Basic validation - ensure model name has valid format
-        const isValid = modelName.includes('/') && modelName.length > 5;
-        return isValid;
+        // Get the current provider from the store state
+        const state = get();
+        const provider = state.selectedProvider;
+
+        // For Ollama models, allow both formats:
+        // 1. Full format: model:tag (e.g., mistral:latest)
+        // 2. Just model name (e.g., mistral)
+        if (provider === 'ollama') {
+          // Allow just model name or model:tag format
+          return modelName.length > 0 && /^[a-zA-Z0-9-_]+(:[a-zA-Z0-9-_]+)?$/.test(modelName);
+        }
+        
+        // For other providers, maintain original validation
+        return modelName.includes('/') && modelName.length > 5;
       },
       setCurrentSession: (session: ChatSession | null) => set({ currentSession: session }),
       setMessages: (messages: Message[]) => set({ messages }),
