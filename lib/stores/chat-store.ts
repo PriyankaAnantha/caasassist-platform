@@ -179,28 +179,20 @@ export const AVAILABLE_MODELS: ModelOption[] = [
 ]
 
 interface ChatState {
-  // Current session
   currentSession: ChatSession | null
   messages: Message[]
-
-  // All sessions
   sessions: ChatSession[]
-
-  // UI state
   isLoading: boolean
   isStreaming: boolean
   selectedModel: string
   selectedProvider: AIProvider
   ollamaUrl: string
-  
-  // API Keys
   apiKeys: {
     openai?: string
     openrouter?: string
     ollama?: string
   }
-
-  // Actions
+  validateModelName: (modelName: string) => boolean
   setCurrentSession: (session: ChatSession | null) => void
   setMessages: (messages: Message[]) => void
   addMessage: (message: Message) => void
@@ -217,104 +209,146 @@ interface ChatState {
   setApiKey: (provider: keyof ChatState['apiKeys'], key: string) => void
   clearApiKey: (provider: keyof ChatState['apiKeys']) => void
   clearCurrentChat: () => void
+  streamMessage: (message: string) => Promise<void>
 }
 
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => ({
       // Initial state - default to a working free OpenRouter model
-      currentSession: null,
-      messages: [],
-      sessions: [],
+      currentSession: null as ChatSession | null,
+      messages: [] as Message[],
+      sessions: [] as ChatSession[],
       isLoading: false,
       isStreaming: false,
       selectedModel: "meta-llama/llama-3.2-3b-instruct:free",
-      selectedProvider: "openrouter",
+      selectedProvider: "openrouter" as AIProvider,
       ollamaUrl: "http://localhost:11434",
       apiKeys: {
         openai: "",
         openrouter: "",
         ollama: ""
+      } as const,
+      validateModelName: (modelName: string): boolean => {
+        // Basic validation - ensure model name has valid format
+        const isValid = modelName.includes('/') && modelName.length > 5;
+        return isValid;
       },
-
-      // Actions
-      setCurrentSession: (session) => set({ currentSession: session }),
-
-      setMessages: (messages) => set({ messages }),
-
-      addMessage: (message) =>
+      setCurrentSession: (session: ChatSession | null) => set({ currentSession: session }),
+      setMessages: (messages: Message[]) => set({ messages }),
+      addMessage: (message: Message) =>
         set((state) => ({
           messages: [...state.messages, message],
         })),
-
-      updateLastMessage: (content) =>
+      updateLastMessage: (content: string) =>
         set((state) => {
-          const messages = [...state.messages]
-          if (messages.length > 0) {
-            messages[messages.length - 1] = {
-              ...messages[messages.length - 1],
+          const lastMessage = state.messages[state.messages.length - 1];
+          if (lastMessage && lastMessage.role === 'assistant') {
+            const updatedMessages = [...state.messages];
+            updatedMessages[updatedMessages.length - 1] = {
+              ...lastMessage,
               content,
-            }
+            };
+            return { messages: updatedMessages };
           }
-          return { messages }
+          return state;
         }),
-
-      setSessions: (sessions) => set({ sessions }),
-
-      addSession: (session) =>
+      setSessions: (sessions: ChatSession[]) => set({ sessions }),
+      addSession: (session: ChatSession) =>
         set((state) => ({
-          sessions: [session, ...state.sessions],
+          sessions: [...state.sessions, session],
         })),
-
-      updateSession: (id, updates) =>
+      updateSession: (id: string, updates: Partial<ChatSession>) =>
         set((state) => ({
-          sessions: state.sessions.map((session) => (session.id === id ? { ...session, ...updates } : session)),
+          sessions: state.sessions.map(s => 
+            s.id === id ? { ...s, ...updates } : s
+          )
         })),
-
-      deleteSession: (id) =>
+      deleteSession: (id: string) =>
         set((state) => ({
-          sessions: state.sessions.filter((session) => session.id !== id),
-          currentSession: state.currentSession?.id === id ? null : state.currentSession,
-          messages: state.currentSession?.id === id ? [] : state.messages,
+          sessions: state.sessions.filter(s => s.id !== id),
         })),
-
-      setIsLoading: (isLoading) => set({ isLoading }),
-      setIsStreaming: (isStreaming) => set({ isStreaming }),
-      setSelectedModel: (selectedModel) => {
-        const model = AVAILABLE_MODELS.find((m) => m.id === selectedModel)
-        if (model) {
-          set({ selectedModel, selectedProvider: model.provider })
+      setIsLoading: (loading: boolean) => set({ isLoading: loading }),
+      setIsStreaming: (streaming: boolean) => set({ isStreaming: streaming }),
+      setSelectedModel: (modelName: string) => {
+        const isValid = get().validateModelName(modelName);
+        if (isValid) {
+          set({ selectedModel: modelName });
         }
       },
-      setSelectedProvider: (selectedProvider) => set({ selectedProvider }),
-      setOllamaUrl: (ollamaUrl) => set({ ollamaUrl }),
-      setApiKey: (provider, key) =>
+      setSelectedProvider: (provider: AIProvider) => set({ selectedProvider: provider }),
+      setOllamaUrl: (url: string) => set({ ollamaUrl: url }),
+      setApiKey: (provider: keyof ChatState['apiKeys'], key: string) => 
         set((state) => ({
-          apiKeys: {
-            ...state.apiKeys,
-            [provider]: key,
-          },
+          apiKeys: { ...state.apiKeys, [provider]: key }
         })),
-      clearApiKey: (provider) =>
-        set((state) => {
-          const newKeys = { ...state.apiKeys }
-          delete newKeys[provider]
-          return { apiKeys: newKeys }
-        }),
+      clearApiKey: (provider: keyof ChatState['apiKeys']) => 
+        set((state) => ({
+          apiKeys: { ...state.apiKeys, [provider]: '' }
+        })),
       clearCurrentChat: () =>
         set({
           currentSession: null,
           messages: [],
+          isLoading: false,
+          isStreaming: false
         }),
+      streamMessage: async (message: string) => {
+        const state = get();
+        const { selectedModel, selectedProvider, apiKeys } = state;
+        
+        if (!selectedModel) {
+          throw new Error('No model selected');
+        }
+
+        const providerKey = apiKeys[selectedProvider];
+        if (selectedProvider !== 'ollama' && !providerKey) {
+          throw new Error('API key required for selected provider');
+        }
+
+        set({ isLoading: true, isStreaming: true });
+
+        try {
+          const assistantMessage: Message = {
+            id: crypto.randomUUID(),
+            role: "assistant" as const,
+            content: '',
+            timestamp: new Date(),
+            session_id: state.currentSession?.id || crypto.randomUUID()
+          };
+
+          set({ messages: [...state.messages, assistantMessage] });
+
+          // Simulate streaming (this would be replaced with actual API call)
+          let response = '';
+          for (let i = 0; i < message.length; i += 2) {
+            response += message[i];
+            set({
+              messages: state.messages.map(msg => 
+                msg.id === assistantMessage.id 
+                  ? { ...msg, content: response }
+                  : msg
+              )
+            });
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
+
+        } catch (error) {
+          console.error('Streaming error:', error);
+          throw error;
+        } finally {
+          set({ isLoading: false, isStreaming: false });
+        }
+      }
     }),
     {
       name: "chat-store",
-      partialize: (state) => ({
+      partialize: (state: ChatState) => ({
         selectedModel: state.selectedModel,
         selectedProvider: state.selectedProvider,
-        sessions: state.sessions,
-        ollamaUrl: state.ollamaUrl,
-      }),
-    },
-  ),
+        apiKeys: state.apiKeys,
+        ollamaUrl: state.ollamaUrl
+      })
+    }
+  )
 )

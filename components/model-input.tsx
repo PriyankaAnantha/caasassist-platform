@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, JSX } from "react"
 import { Bot, Globe, Monitor, CheckCircle, AlertTriangle } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -7,9 +7,16 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useChatStore, type AIProvider } from "@/lib/stores/chat-store"
 
 export function ModelInput() {
-  const { selectedModel, selectedProvider, setSelectedModel, setSelectedProvider } = useChatStore()
+  const { 
+    selectedModel, 
+    selectedProvider, 
+    setSelectedModel, 
+    setSelectedProvider,
+    validateModelName
+  } = useChatStore()
   const [modelName, setModelName] = useState(selectedModel)
   const [isOpen, setIsOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const providers: { id: AIProvider; name: string; icon: JSX.Element }[] = [
     { id: "openai", name: "OpenAI", icon: <Bot className="w-4 h-4" /> },
@@ -27,14 +34,25 @@ export function ModelInput() {
   }
 
   const handleSave = () => {
-    if (modelName.trim()) {
-      setSelectedModel(modelName.trim())
+    const trimmedModel = modelName.trim()
+    if (!trimmedModel) {
+      setError('Model name cannot be empty')
+      return
     }
+
+    if (!validateModelName(trimmedModel)) {
+      setError('Invalid model name format')
+      return
+    }
+
+    setSelectedModel(trimmedModel)
+    setError(null)
   }
 
   // Update local state when store changes
   useEffect(() => {
     setModelName(selectedModel)
+    setError(null)
   }, [selectedModel])
 
   return (
@@ -69,11 +87,19 @@ export function ModelInput() {
       <div className="relative flex-1">
         <Input
           value={modelName}
-          onChange={(e) => setModelName(e.target.value)}
+          onChange={(e) => {
+            setModelName(e.target.value)
+            setError(null)
+          }}
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
           placeholder="Enter model name (e.g., gpt-4o)"
           className="pr-16"
         />
+        {error && (
+          <div className="absolute right-0 top-full mt-1 px-2 py-1 text-xs text-red-500 bg-red-50 rounded">
+            {error}
+          </div>
+        )}
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
           {modelName !== selectedModel ? (
             <Button
