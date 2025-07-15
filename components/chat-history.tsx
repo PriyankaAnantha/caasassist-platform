@@ -103,9 +103,9 @@ export function ChatHistory({ open, onOpenChange, onNewChat, onSessionSelect }: 
 
             if (error) throw error;
 
-            // If session has fewer than 2 messages, delete it
-            if (messages.length < 2) {
-              console.log(`Deleting session ${session.id} with ${messages.length} messages`);
+            // Only delete sessions with NO messages
+            if (messages.length === 0) {
+              console.log(`Deleting empty session ${session.id}`);
               await supabase.from("chat_messages").delete().eq("session_id", session.id);
               await supabase.from("chat_sessions").delete().eq("id", session.id);
               return null; // This session will be filtered out

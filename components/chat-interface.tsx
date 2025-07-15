@@ -15,7 +15,7 @@ import { ChatHistory } from "@/components/chat-history"
 import { DocumentManager } from "@/components/document-manager"
 import { MarkdownRenderer } from "./markdown-renderer"
 import { OllamaSetup } from "@/components/ollama-setup"
-import { useChatStore } from "@/lib/stores/chat-store"
+import { useChatStore, ChatSession } from "@/lib/stores/chat-store"
 import { useSettingsStore } from "@/lib/stores/settings-store"
 import { useAuth } from "@/components/auth-provider"
 import { createClient } from "@/lib/supabase/client"
@@ -97,13 +97,23 @@ export function ChatInterface() {
       // Save message to database
       if (currentSession && user) {
         try {
+          // Save the final message
           await saveMessage(message.content, "assistant", currentSession.id)
+          
+          // Update session message count
+          await updateSession(currentSession.id, {
+            message_count: currentSession.message_count + 1
+          })
         } catch (saveError) {
-          console.error("Failed to save message:", saveError)
+          console.warn("Failed to save message:", saveError)
         }
       }
     },
     onError: async (rawError: unknown) => {
+      // Always stop streaming when an error occurs
+      stop()
+      setIsStreaming(false)
+      setGlobalIsStreaming(false)
       console.error("=== CHAT ERROR HANDLER TRIGGERED ===");
       console.error("Raw error:", rawError);
       
@@ -156,24 +166,57 @@ export function ChatInterface() {
         } 
         // Handle Error objects
         else if (rawError instanceof Error) {
-          console.error("Error object:", rawError)
+          // Log error with console.warn instead of error
+          console.warn("Chat error:", {
+            message: rawError.message,
+            name: rawError.name,
+            stack: rawError.stack
+          })
+          
           errorDetails = {
             message: rawError.message || 'An error occurred',
             details: rawError.stack ? rawError.stack.split('\n').slice(0, 3).join('\n') : '',
             suggestion: 'Please check your network connection and try again',
             type: 'client_error',
-            isStreamError: rawError.message.includes('stream') || rawError.message.includes('Unexpected end of JSON input'),
+            isStreamError: rawError.message.includes('stream') || 
+                           rawError.message.includes('Unexpected end of JSON input') ||
+                           rawError.message.includes('Response was interrupted') ||
+                           rawError.message.includes('Network error'),
             canRetry: retryCount < 3
+          }
+
+          // Handle specific Ollama streaming errors
+          if (selectedProvider === 'ollama') {
+            if (errorDetails.isStreamError) {
+              errorDetails.message = 'Streaming response interrupted'
+              errorDetails.details = 'This is normal for long Ollama responses'
+              errorDetails.suggestion = 'The response was interrupted. This is normal for long responses. Try again if needed.'
+              errorDetails.type = 'stream_interrupt'
+              errorDetails.canRetry = true
+            }
           }
           
           // Handle common network errors
           if (rawError.message.includes('Failed to fetch') || 
               rawError.message.includes('NetworkError') ||
-              rawError.message.includes('ECONNREFUSED')) {
-            errorDetails.message = 'Connection failed'
-            errorDetails.details = 'Could not connect to the server'
-            errorDetails.suggestion = 'Please check if the server is running and accessible'
-            errorDetails.type = 'connection_error'
+              rawError.message.includes('ECONNREFUSED') ||
+              rawError.message.includes('Response was interrupted')) {
+            errorDetails.message = 'Connection interrupted'
+            errorDetails.details = 'The streaming response was interrupted'
+            errorDetails.suggestion = 'The response was interrupted. This is normal for long responses. Try again if needed.'
+            errorDetails.type = 'stream_interrupt'
+            errorDetails.canRetry = retryCount < 3
+          }
+          
+          // Handle Ollama-specific errors
+          if (selectedProvider === 'ollama') {
+            if (rawError.message.includes('stream') || errorDetails.isStreamError) {
+              errorDetails.message = 'Streaming response interrupted'
+              errorDetails.details = 'This is normal for long Ollama responses'
+              errorDetails.suggestion = 'The response was interrupted. This is normal for long responses. Try again if needed.'
+              errorDetails.type = 'stream_interrupt'
+              errorDetails.canRetry = retryCount < 3
+            }
           }
         } else {
           console.error("Unknown error format:", rawError)
@@ -190,28 +233,17 @@ export function ChatInterface() {
         }
       }
 
-      // Safe error logging to prevent serialization issues
+      // Enhanced error logging
       try {
-        console.error("=== Chat Error Details ===")
-        // Safely stringify the raw error for logging
-        const safeRawError = rawError instanceof Error 
-          ? { 
-              name: rawError.name, 
-              message: rawError.message, 
-              stack: rawError.stack,
-              // Add any other safe properties
-              ...(rawError as any).cause ? { cause: String((rawError as any).cause) } : {}
-            } 
-          : typeof rawError === 'object' 
-            ? JSON.parse(JSON.stringify(rawError, (key, value) => 
-                typeof value === 'bigint' ? value.toString() : value
-              ))
-            : rawError
-            
-        console.error("Raw error:", safeRawError)
-        console.error("Error details:", errorDetails)
+        // Log only essential error information
+        console.warn("=== Chat Error Details ===", {
+          type: errorDetails.type,
+          message: errorDetails.message,
+          isStreamError: errorDetails.isStreamError,
+          canRetry: errorDetails.canRetry
+        })
       } catch (logError) {
-        console.error("Error while logging error:", logError)
+        console.warn("Error while logging error details")
       }
 
       const debugData = {
@@ -246,15 +278,15 @@ export function ChatInterface() {
           // Use the error details from the server
           errorMessage = errorDetails.message || "Ollama connection failed"
           suggestion = errorDetails.suggestion || "Make sure Ollama is running and accessible"
+        } else if (errorDetails.type === 'stream_interrupt') {
+          errorMessage = "Streaming response interrupted"
+          suggestion = "This is normal for long Ollama responses. Try again if needed."
         } else if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('Failed to fetch')) {
           errorMessage = "Could not connect to Ollama server"
           suggestion = `Make sure Ollama is running at ${ollamaUrl || 'http://localhost:11434'}`
         } else if (errorMessage.includes('model not found')) {
           errorMessage = `Model "${selectedModel}" not found in Ollama`
           suggestion = `Run: ollama pull ${selectedModel}`
-        } else if (errorMessage.includes('stream') || errorDetails.isStreamError) {
-          errorMessage = "Error in streaming response"
-          suggestion = retryCount < 3 ? "The response was interrupted. Would you like to retry?" : "Please try again with a different query."
         } else {
           errorMessage = errorMessage || "Ollama error occurred"
           suggestion = "Check the Ollama server logs for more details"
@@ -279,6 +311,22 @@ export function ChatInterface() {
       setConnectionError(full)
     },
   })
+
+  // Helper function to update session details
+  const updateSession = async (sessionId: string, updates: Partial<ChatSession>) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from("chat_sessions")
+        .update(updates)
+        .eq("id", sessionId);
+        
+      if (error) throw error;
+    } catch (error) {
+      console.warn("Failed to update session:", error);
+    }
+  }
 
   const saveMessage = async (content: string, role: "user" | "assistant", sessionId: string) => {
     if (!user || !sessionId) return;
@@ -355,7 +403,9 @@ export function ChatInterface() {
 
       const sessionData = {
         title: "New Chat",
-        model: selectedModel,
+        model: selectedProvider === 'ollama' 
+          ? selectedModel.split(':')[0]  // Store just the model name without tag
+          : selectedModel,
         user_id: user.id,
       }
 
@@ -384,7 +434,7 @@ export function ChatInterface() {
         throw error
       }
 
-      const newSession = {
+      const newSession: ChatSession = {
         id: data.id,
         title: data.title,
         model: data.model,
@@ -392,6 +442,7 @@ export function ChatInterface() {
         created_at: new Date(data.created_at),
         updated_at: new Date(data.updated_at),
         message_count: 0,
+        user_id: user?.id || ''
       }
 
       console.log("Session created successfully:", newSession.id)

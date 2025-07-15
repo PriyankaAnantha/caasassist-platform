@@ -368,7 +368,8 @@ Avoid raw bullet-point lists unless absolutely necessary. Use clear structure an
             
             aiClient = ollamaClient
             aiModel = targetModel
-            maxTokens = 2000
+            // Use the maximum safe integer value for maxTokens
+            maxTokens = Number.MAX_SAFE_INTEGER
             
             console.log("Ollama client configured with model:", aiModel)
           } catch (error: any) {

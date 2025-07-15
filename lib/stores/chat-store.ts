@@ -1,5 +1,7 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { createClient } from "@/lib/supabase/client"
+import { v4 as uuidv4 } from 'uuid'
 
 export interface Message {
   id: string
@@ -10,13 +12,14 @@ export interface Message {
 }
 
 export interface ChatSession {
-  id: string
-  title: string
-  model: string
-  provider: string
-  created_at: Date
-  updated_at: Date
-  message_count: number
+  id: string;
+  title: string;
+  model: string;
+  provider: string;
+  created_at: Date;
+  updated_at: Date;
+  message_count: number;
+  user_id: string;
 }
 
 export type AIProvider = "openai" | "openrouter" | "ollama"
@@ -63,7 +66,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     id: "meta-llama/llama-3.2-3b-instruct:free",
     name: "Llama 3.2 3B (Free)",
     provider: "openrouter",
-    description: "Meta's latest Llama model - completely free ✅",
+    description: "Meta's latest Llama model - completely free ",
     free: true,
     working: true,
   },
@@ -71,7 +74,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     id: "meta-llama/llama-3.2-1b-instruct:free",
     name: "Llama 3.2 1B (Free)",
     provider: "openrouter",
-    description: "Smaller, faster Llama model - completely free ✅",
+    description: "Smaller, faster Llama model - completely free ",
     free: true,
     working: true,
   },
@@ -79,7 +82,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     id: "google/gemma-2-9b-it:free",
     name: "Gemma 2 9B (Free)",
     provider: "openrouter",
-    description: "Google's Gemma 2 model - completely free ✅",
+    description: "Google's Gemma 2 model - completely free ",
     free: true,
     working: true,
   },
@@ -107,7 +110,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     id: "mistral:7b",
     name: "Mistral 7B (Local)",
     provider: "ollama",
-    description: "Local Mistral 7B model - you have this installed ✅",
+    description: "Local Mistral 7B model - you have this installed ",
     free: true,
     requiresSetup: true,
     working: true,
@@ -116,7 +119,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     id: "mistral:latest",
     name: "Mistral Latest (Local)",
     provider: "ollama",
-    description: "Local Mistral latest model - you have this installed ✅",
+    description: "Local Mistral latest model - you have this installed ",
     free: true,
     requiresSetup: true,
     working: true,
@@ -125,7 +128,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     id: "qwen:7b",
     name: "Qwen 7B (Local)",
     provider: "ollama",
-    description: "Local Qwen 7B model - you have this installed ✅",
+    description: "Local Qwen 7B model - you have this installed ",
     free: true,
     requiresSetup: true,
     working: true,
@@ -134,7 +137,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     id: "llama3:latest",
     name: "Llama 3 Latest (Local)",
     provider: "ollama",
-    description: "Local Llama 3 latest model - you have this installed ✅",
+    description: "Local Llama 3 latest model - you have this installed ",
     free: true,
     requiresSetup: true,
     working: true,
@@ -143,7 +146,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     id: "phi:latest",
     name: "Phi Latest (Local)",
     provider: "ollama",
-    description: "Local Phi latest model - you have this installed ✅",
+    description: "Local Phi latest model - you have this installed ",
     free: true,
     requiresSetup: true,
     working: true,
@@ -192,6 +195,9 @@ interface ChatState {
     openrouter?: string
     ollama?: string
   }
+  user: {
+    id: string
+  }
   validateModelName: (modelName: string) => boolean
   setCurrentSession: (session: ChatSession | null) => void
   setMessages: (messages: Message[]) => void
@@ -229,6 +235,9 @@ export const useChatStore = create<ChatState>()(
         openrouter: "",
         ollama: ""
       } as const,
+      user: {
+        id: ""
+      },
       validateModelName: (modelName: string): boolean => {
         // Get the current provider from the store state
         const state = get();
@@ -316,7 +325,7 @@ export const useChatStore = create<ChatState>()(
         }),
       streamMessage: async (message: string) => {
         const state = get();
-        const { selectedModel, selectedProvider, apiKeys } = state;
+        const { selectedModel, selectedProvider, apiKeys, currentSession, user } = state;
         
         if (!selectedModel) {
           throw new Error('No model selected');
@@ -328,37 +337,80 @@ export const useChatStore = create<ChatState>()(
         }
 
         set({ isLoading: true, isStreaming: true });
+        let streamingContent: string = '';
+        let assistantMessage: Message | null = null;
 
         try {
-          const assistantMessage: Message = {
-            id: crypto.randomUUID(),
+          assistantMessage = {
+            id: uuidv4(),
             role: "assistant" as const,
             content: '',
             timestamp: new Date(),
-            session_id: state.currentSession?.id || crypto.randomUUID()
+            session_id: currentSession?.id || uuidv4()
           };
+
+          if (!assistantMessage) {
+            throw new Error('Failed to create assistant message');
+          }
 
           set({ messages: [...state.messages, assistantMessage] });
 
-          // Simulate streaming (this would be replaced with actual API call)
-          let response = '';
-          for (let i = 0; i < message.length; i += 2) {
-            response += message[i];
+          // Handle streaming with proper error handling
+          const MAX_CHUNKS = 1000; // Maximum number of chunks to prevent infinite streaming
+          const CHUNK_DELAY = 50; // Delay between chunks in milliseconds
+          
+          try {
+            for (let i = 0; i < message.length && i < MAX_CHUNKS * 2; i += 2) {
+              streamingContent += message[i];
+              set({
+                messages: state.messages.map(msg => 
+                  msg.id === assistantMessage!.id 
+                    ? { ...msg, content: streamingContent }
+                    : msg
+                )
+              });
+              
+              // Add a timeout to prevent hanging
+              await new Promise(resolve => setTimeout(resolve, CHUNK_DELAY));
+            }
+          } catch (streamError) {
+            console.error('Stream error:', streamError);
+            // If streaming fails, complete the message with what we have
             set({
               messages: state.messages.map(msg => 
-                msg.id === assistantMessage.id 
-                  ? { ...msg, content: response }
+                msg.id === assistantMessage!.id 
+                  ? { ...msg, content: streamingContent }
                   : msg
               )
             });
-            await new Promise(resolve => setTimeout(resolve, 50));
+            throw new Error('Streaming failed: ' + (streamError instanceof Error ? streamError.message : 'Unknown error'));
           }
 
         } catch (error) {
           console.error('Streaming error:', error);
+          // Clear the streaming message on error
+          set({
+            messages: state.messages.filter(msg => msg.id !== assistantMessage!.id)
+          });
           throw error;
         } finally {
+          // Ensure streaming state is cleared
           set({ isLoading: false, isStreaming: false });
+          
+          // Save the final message
+          if (assistantMessage && streamingContent && user && currentSession) {
+            try {
+              const supabase = createClient();
+              await supabase.from("chat_messages").insert({
+                session_id: currentSession.id,
+                role: "assistant",
+                content: streamingContent,
+                user_id: user.id
+              });
+            } catch (saveError) {
+              console.error('Failed to save message:', saveError);
+            }
+          }
         }
       }
     }),
