@@ -305,11 +305,11 @@ export function ChatInterface() {
 
         if (messagesError) throw messagesError;
 
-        // If there are fewer than 2 messages, delete the session
-        if (messages.length < 2) {
-          console.log("Deleting session with fewer than 2 messages");
+        // Only delete sessions with NO messages
+        if (messages.length === 0) {
+          console.log("Deleting empty session");
           
-          // Delete all messages first
+          // Delete all messages first (though there should be none)
           await supabase
             .from("chat_messages")
             .delete()
