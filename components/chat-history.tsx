@@ -293,7 +293,7 @@ export function ChatHistory({ open, onOpenChange, onNewChat, onSessionSelect }: 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="w-80 p-0 flex flex-col">
+      <SheetContent side="left" className="w-80 p-0 flex flex-col pt-12">
         <SheetHeader className="p-4 border-b border-blue-200/50 flex-shrink-0">
           <SheetTitle className="flex items-center justify-between">
             <span>Chat History</span>
