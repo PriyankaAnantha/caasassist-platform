@@ -259,11 +259,21 @@ export const useChatStore = create<ChatState>()(
           sessions: [...state.sessions, session],
         })),
       updateSession: (id: string, updates: Partial<ChatSession>) =>
-        set((state) => ({
-          sessions: state.sessions.map(s => 
+        set((state) => {
+          const updatedSessions = state.sessions.map(s => 
             s.id === id ? { ...s, ...updates } : s
-          )
-        })),
+          );
+          
+          // If this is the current session, update it as well
+          const updatedCurrentSession = state.currentSession?.id === id
+            ? { ...state.currentSession, ...updates }
+            : state.currentSession;
+
+          return {
+            sessions: updatedSessions,
+            currentSession: updatedCurrentSession
+          };
+        }),
       deleteSession: (id: string) =>
         set((state) => ({
           sessions: state.sessions.filter(s => s.id !== id),
