@@ -65,7 +65,7 @@ export function DocumentManager({ open, onOpenChange }: DocumentManagerProps) {
         throw error
       }
 
-      const formattedDocs: Document[] = (data || []).map((doc) => ({
+      const formattedDocs: Document[] = (data || []).map((doc: { id: string; name: string; size: number; type: string; status: string; upload_progress?: number; created_at: string; chunk_count?: number; error_message?: string }) => ({
         id: doc.id,
         name: doc.name,
         size: doc.size,
@@ -302,7 +302,7 @@ export function DocumentManager({ open, onOpenChange }: DocumentManagerProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-80 p-0">
+      <SheetContent side="right" className="w-[32rem] p-0 flex flex-col max-w-full">
         <SheetHeader className="p-4 border-b border-blue-200/50">
           <SheetTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
@@ -310,7 +310,7 @@ export function DocumentManager({ open, onOpenChange }: DocumentManagerProps) {
           </SheetTitle>
         </SheetHeader>
 
-        <div className="p-4 space-y-4">
+        <div className="px-6 py-4 space-y-4 flex-shrink-0">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -372,8 +372,8 @@ export function DocumentManager({ open, onOpenChange }: DocumentManagerProps) {
         </div>
 
         {/* Documents List */}
-        <ScrollArea className="flex-1">
-          <div className="p-4 space-y-3">
+        <ScrollArea className="flex-1 overflow-y-auto">
+          <div className="px-6 pb-6 space-y-3">
             {filteredDocuments.length === 0 && !loadingError ? (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -386,10 +386,10 @@ export function DocumentManager({ open, onOpenChange }: DocumentManagerProps) {
               filteredDocuments.map((document) => (
                 <div
                   key={document.id}
-                  className="group p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-sm transition-shadow"
+                  className="group relative pl-12 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-sm transition-all"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between w-full gap-2">
+                    <div className="flex-1 min-w-0 overflow-hidden">
                       <div className="flex items-center gap-2 mb-1">
                         {getStatusIcon(document.status)}
                         <h4 className="font-medium text-sm truncate">{document.name}</h4>
@@ -418,26 +418,24 @@ export function DocumentManager({ open, onOpenChange }: DocumentManagerProps) {
                       </p>
                     </div>
 
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <MoreHorizontal className="w-3 h-3" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteDocument(document.id)}
-                          className="text-red-600 dark:text-red-400"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="absolute left-2 top-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-7 w-7 rounded-full flex items-center justify-center ${
+                          document.status === 'processing' || document.status === 'error'
+                            ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30'
+                            : 'text-gray-500 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-800'
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteDocument(document.id);
+                        }}
+                        title="Delete document"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))
