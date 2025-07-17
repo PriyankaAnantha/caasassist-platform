@@ -54,11 +54,18 @@ export async function POST(req: Request) {
     const body = await req.json()
     const { messages, model = "gpt-4o-mini", provider = "openai", sessionId, ollamaUrl } = body
     
-    // Get API keys from headers
+    // Get API keys and configuration from headers
     const openaiKey = req.headers.get('x-openai-key') || ''
     const openrouterKey = req.headers.get('x-openrouter-key') || ''
     const ollamaKey = req.headers.get('x-ollama-key') || ''
     const customOllamaUrl = req.headers.get('x-ollama-url') || ''
+    
+    // Log which API keys are provided (without logging the actual keys)
+    console.log("API key status:", {
+      hasOpenAIKey: !!(openaiKey || process.env.OPENAI_API_KEY),
+      hasOpenRouterKey: !!(openrouterKey || process.env.OPENROUTER_API_KEY),
+      hasOllamaKey: !!ollamaKey
+    })
 
     console.log("Request details:", {
       messagesCount: messages?.length,
@@ -408,9 +415,15 @@ export async function POST(req: Request) {
 
       switch (provider) {
         case "openai":
-          aiClient = openai
-          aiModel = model
-          maxTokens = 2000
+          // Use the API key from headers or fall back to environment variable
+          const openAIApiKey = openaiKey || process.env.OPENAI_API_KEY
+          if (!openAIApiKey) {
+            throw new Error('OpenAI API key is required. Please provide it in the settings.')
+          }
+          aiClient = getApiClient("openai", openAIApiKey, "https://api.openai.com/v1")
+          aiModel = model // Use the model name as provided by the user
+          maxTokens = 4000 // Increased token limit for better context handling
+          console.log("Initialized OpenAI client with model:", aiModel)
           break
 
         case "openrouter":
