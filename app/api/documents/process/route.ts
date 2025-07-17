@@ -22,15 +22,22 @@ export async function POST(req: NextRequest) {
 
     console.log("Parsing form data...")
     const formData = await req.formData()
-    const file = formData.get("file") as File
-    const documentId = formData.get("documentId") as string
+    const file = formData.get("file") as File | null
+    const documentId = formData.get("documentId") as string | null
 
     if (!file || !documentId) {
-      console.error("Missing file or document ID")
-      return Response.json({ error: "Missing file or document ID" }, { status: 400 })
+      const errorMsg = `Missing required fields. File: ${!!file}, Document ID: ${!!documentId}`
+      console.error(errorMsg)
+      return Response.json({ error: errorMsg }, { status: 400 })
     }
 
-    console.log(`Processing document ${documentId} (${file.name}, ${file.size} bytes)...`)
+    // Sanitize and validate filename
+    const safeFileName = file.name
+      .replace(/[^\w\s.-]/g, '_') // Replace special chars with underscore
+      .replace(/\s+/g, '_') // Replace spaces with underscore
+      .toLowerCase()
+
+    console.log(`Processing document ${documentId} (${safeFileName}, ${file.size} bytes, ${file.type})...`)
     
     // Update document status to processing
     const { error: updateStatusError } = await supabase
@@ -50,12 +57,47 @@ export async function POST(req: NextRequest) {
     console.log("Extracting text from file...")
     let text: string
     try {
+      // Validate file size (50MB limit)
+      const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
+      if (file.size > MAX_FILE_SIZE) {
+        throw new Error(`File size (${(file.size / (1024 * 1024)).toFixed(2)}MB) exceeds maximum allowed size (50MB)`)
+      }
+
+      // Validate file type
+      const allowedTypes = [
+        'application/pdf',
+        'text/plain',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/markdown',
+        'text/csv',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/html'
+      ]
+      
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error(`Unsupported file type: ${file.type}`)
+      }
+
       text = await extractTextFromFile(file)
-      console.log(`Extracted ${text.length} characters from file`)
-    } catch (err) {
+      console.log(`Successfully extracted ${text.length} characters from file`)
+      
+      // Ensure we have content
+      if (!text || text.trim().length === 0) {
+        throw new Error('Extracted text is empty')
+      }
+      
+    } catch (err: any) {
       const error = err as Error
-      console.error("Error extracting text:", error)
-      throw new Error(`Failed to extract text from file: ${error.message}`)
+      console.error("Error processing file:", {
+        error: error.message,
+        stack: error.stack,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type
+      })
+      throw new Error(`Failed to process file: ${error.message}`)
     }
 
     // Chunk the text
@@ -152,15 +194,43 @@ export async function POST(req: NextRequest) {
 }
 
 async function extractTextFromFile(file: File): Promise<string> {
-  const text = await file.text()
+  try {
+    // For text-based files, we can read them directly
+    if (file.type.startsWith('text/') || 
+        file.type === 'application/json' || 
+        file.type === 'application/xml') {
+      return await file.text()
+    }
 
-  if (file.type === "application/pdf") {
-    // In a real implementation, you'd use a PDF parsing library
-    // For now, return placeholder text
-    return `PDF content from ${file.name}: ${text.substring(0, 1000)}...`
+    // For PDFs, we'd typically use a library like pdf-parse
+    if (file.type === 'application/pdf') {
+      // In a production environment, you'd use a proper PDF parsing library
+      // For now, we'll extract some basic text if possible
+      const arrayBuffer = await file.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+      
+      // Simple text extraction from PDF (very basic, won't work for all PDFs)
+      // In a real app, you'd use a proper PDF parsing library here
+      const text = buffer.toString('utf8', 0, Math.min(10000, buffer.length))
+      return text.replace(/[^\x20-\x7E\n\r\t]/g, '') // Remove non-printable characters
+    }
+
+    // For other file types, try to extract text if possible
+    try {
+      return await file.text()
+    } catch (e) {
+      console.warn(`Could not extract text from file type: ${file.type}`)
+      return ''
+    }
+  } catch (error: any) {
+    console.error('Error in extractTextFromFile:', {
+      error: error.message,
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size
+    })
+    throw new Error(`Failed to extract text: ${error.message}`)
   }
-
-  return text
 }
 
 function chunkText(text: string, chunkSize: number, overlap: number): string[] {

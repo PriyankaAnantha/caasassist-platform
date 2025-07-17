@@ -176,38 +176,67 @@ export function DocumentManager({ open, onOpenChange }: DocumentManagerProps) {
   }
 
   const processDocument = async (documentId: string, file: File) => {
+    console.log(`Starting document processing for ${file.name} (${file.size} bytes, ${file.type})`)
+    
     try {
+      // Validate file before processing
+      if (!file || file.size === 0) {
+        throw new Error('Invalid or empty file')
+      }
+
       const formData = new FormData()
       formData.append("file", file)
       formData.append("documentId", documentId)
 
-      const response = await fetch("/api/documents/process", {
-        method: "POST",
-        body: formData,
-      })
+      console.log('Sending document to processing API...')
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        let errorMessage = "Failed to process document"
+      try {
+        const response = await fetch("/api/documents/process", {
+          method: "POST",
+          body: formData,
+          signal: controller.signal
+        })
+        clearTimeout(timeoutId)
 
-        try {
-          const errorData = JSON.parse(errorText)
-          errorMessage = errorData.error || errorMessage
-        } catch {
-          errorMessage = errorText || errorMessage
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error(`API Error (${response.status}):`, errorText)
+          
+          let errorMessage = `Failed to process document (${response.status})`
+          try {
+            const errorData = JSON.parse(errorText)
+            errorMessage = errorData.error || errorMessage
+          } catch (e) {
+            errorMessage = errorText || errorMessage
+          }
+          throw new Error(errorMessage)
         }
 
-        throw new Error(errorMessage)
+        const result = await response.json()
+        console.log('Document processed successfully:', result)
+
+        updateDocument(documentId, {
+          status: "completed",
+          chunk_count: result.chunkCount,
+        })
+      } catch (fetchError: any) {
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timed out. Please try again.')
+        }
+        throw fetchError
       }
-
-      const result = await response.json()
-
-      updateDocument(documentId, {
-        status: "completed",
-        chunk_count: result.chunkCount,
-      })
     } catch (error: any) {
-      console.error("Error processing document:", error)
+      console.error("Error in processDocument:", {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        documentId,
+        fileName: file?.name,
+        fileSize: file?.size,
+        fileType: file?.type
+      })
       updateDocument(documentId, {
         status: "error",
         error_message: error.message,
