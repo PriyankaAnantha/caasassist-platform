@@ -61,6 +61,8 @@ export function ChatInterface() {
   // Get API keys from settings store
   const { apiKeys } = useSettingsStore()
 
+  const [isThinking, setIsThinking] = useState(false)
+  
   const {
     messages,
     input,
@@ -72,6 +74,12 @@ export function ChatInterface() {
     error,
     reload,
   } = useChat({
+    onResponse: (response) => {
+      // When we get a response, the AI is no longer just thinking, it's now streaming
+      setIsThinking(false);
+      setIsStreaming(true);
+      setGlobalIsStreaming(true);
+    },
     api: "/api/chat",
     body: {
       model: selectedProvider === "ollama" ? (selectedModel.includes(':') ? selectedModel : `${selectedModel}:latest`) : selectedModel,
@@ -90,6 +98,7 @@ export function ChatInterface() {
       console.log("Chat finished successfully")
       setIsStreaming(false)
       setGlobalIsStreaming(false)
+      setIsThinking(false)
       setConnectionError("")
       setRetryCount(0)
       setFallbackMode(false)
@@ -523,8 +532,9 @@ export function ChatInterface() {
 
     // Submit to AI SDK
     try {
-      setIsStreaming(true)
-      setGlobalIsStreaming(true)
+      setIsThinking(true)
+      setIsStreaming(false)
+      setGlobalIsStreaming(false)
       
       // Create a new form event with the current input
       const formEvent = {
@@ -854,7 +864,7 @@ export function ChatInterface() {
                 ))
               )}
 
-              {isLoading && (
+              {isThinking && (
                 <div className="flex gap-4 justify-start">
                   <Avatar className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600">
                     <AvatarFallback>
