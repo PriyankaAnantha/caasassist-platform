@@ -101,28 +101,27 @@ export async function POST(req: Request) {
     }
 
     // Check API keys based on provider
-    if (provider === "openai" && !process.env.OPENAI_API_KEY) {
+    if (provider === "openai" && !process.env.OPENAI_API_KEY && !openaiKey) {
       return new Response(
         JSON.stringify({
-          error: "OpenAI API key not configured",
-          details: "Please add OPENAI_API_KEY to your environment variables",
+          error: "OpenAI API key required",
+          details: "Please provide an OpenAI API key in the settings",
         }),
         {
-          status: 500,
+          status: 400,
           headers: { "Content-Type": "application/json" },
         },
       )
     }
 
-    if (provider === "openrouter" && !process.env.OPENROUTER_API_KEY) {
+    if (provider === "openrouter" && !openrouterKey) {
       return new Response(
         JSON.stringify({
           error: "OpenRouter API key required",
-          details:
-            "Please add OPENROUTER_API_KEY to your environment variables. Get one free at https://openrouter.ai/",
+          details: "Please provide an OpenRouter API key in the settings",
         }),
         {
-          status: 500,
+          status: 400,
           headers: { "Content-Type": "application/json" },
         },
       )
@@ -165,6 +164,45 @@ export async function POST(req: Request) {
           status: 500,
           headers: { "Content-Type": "application/json" },
         },
+      )
+    }
+
+    // Initialize AI client variables
+    let aiClient
+    let aiModel = model
+    let maxTokens = 1000
+    let baseUrl = ""
+
+    // For OpenRouter, we need to use the full model name with provider
+    if (provider === 'openrouter' && !aiModel.includes('/')) {
+      // If no provider is specified in the model name, default to openai/
+      aiModel = `openai/${aiModel}`
+    }
+
+    // Create the AI client based on provider
+    try {
+      aiClient = getApiClient(
+        provider,
+        provider === "openai" ? (openaiKey || process.env.OPENAI_API_KEY || "") :
+        provider === "openrouter" ? (openrouterKey || process.env.OPENROUTER_API_KEY || "") :
+        "",
+        provider === "openrouter" ? "https://openrouter.ai/api/v1" : undefined
+      )
+    } catch (error) {
+      console.error("Error creating AI client:", error)
+      return new Response(
+        JSON.stringify({
+          error: "Failed to initialize AI client",
+          details: error instanceof Error ? error.message : String(error),
+          provider,
+          model: aiModel,
+          hasOpenAIKey: !!(openaiKey || process.env.OPENAI_API_KEY),
+          hasOpenRouterKey: !!(openrouterKey || process.env.OPENROUTER_API_KEY)
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
       )
     }
 
@@ -356,13 +394,18 @@ export async function POST(req: Request) {
       console.error("Document context error:", docError)
     }
 
-    // Select AI client and model
-    let aiClient
-    let aiModel
-    let maxTokens = 1000
-    let baseUrl = ""
-
     try {
+      let aiClient;
+      let aiModel = model;
+      let maxTokens = 1000;
+      let baseUrl = "";
+
+      // For OpenRouter, we need to use the full model name with provider
+      if (provider === 'openrouter' && !model.includes('/')) {
+        // If no provider is specified in the model name, default to openrouter
+        aiModel = `openrouter/${model}`
+      }
+
       switch (provider) {
         case "openai":
           aiClient = openai
