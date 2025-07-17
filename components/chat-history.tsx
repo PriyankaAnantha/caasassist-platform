@@ -35,7 +35,10 @@ export function ChatHistory({ open, onOpenChange, onNewChat, onSessionSelect }: 
   const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingField, setEditingField] = useState<'title' | 'model' | 'provider' | null>(null)
   const [editTitle, setEditTitle] = useState("")
+  const [editModel, setEditModel] = useState("")
+  const [editProvider, setEditProvider] = useState("")
   const [loadingError, setLoadingError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -153,48 +156,61 @@ export function ChatHistory({ open, onOpenChange, onNewChat, onSessionSelect }: 
     onOpenChange(false) // Close the history panel
   }
 
-  const handleRenameSession = async (sessionId: string, newTitle: string) => {
-    if (!newTitle.trim()) {
+  const handleUpdateSession = async (sessionId: string, updates: { title?: string; model?: string; provider?: string }) => {
+    if (updates.title !== undefined && !updates.title.trim()) {
       setEditingId(null)
+      setEditingField(null)
       return
     }
 
     try {
-      console.log("Renaming session:", sessionId, "to:", newTitle)
+      console.log("Updating session:", sessionId, "with:", updates)
+
+      const updateData: any = {
+        ...(updates.title !== undefined && { title: updates.title }),
+        ...(updates.model !== undefined && { model: updates.model }),
+        ...(updates.provider !== undefined && { provider: updates.provider }),
+        updated_at: new Date().toISOString()
+      };
 
       const { data, error } = await supabase
         .from("chat_sessions")
-        .update({ 
-          title: newTitle,
-          updated_at: new Date().toISOString() 
-        })
+        .update(updateData)
         .eq("id", sessionId)
-        .eq("user_id", user?.id) // Extra security check
+        .eq("user_id", user?.id)
         .select()
         .single()
 
       if (error) {
-        console.error("Rename error:", error)
+        console.error("Update error:", error)
         throw error
       }
 
       // Update the session in the local state
-      updateSession(sessionId, { 
-        title: newTitle,
+      updateSession(sessionId, {
+        ...(updates.title !== undefined && { title: updates.title }),
+        ...(updates.model !== undefined && { model: updates.model }),
+        ...(updates.provider !== undefined && { provider: updates.provider }),
         updated_at: new Date(data.updated_at)
       })
       
       // Clear editing state
       setEditingId(null)
+      setEditingField(null)
       setEditTitle("")
+      setEditModel("")
+      setEditProvider("")
       
-      console.log("Session renamed successfully")
+      console.log("Session updated successfully")
     } catch (error: any) {
       console.error("Error renaming session:", error)
       setLoadingError(`Failed to rename session: ${error.message}`)
       // Reset editing state on error
       setEditingId(null)
+      setEditingField(null)
       setEditTitle("")
+      setEditModel("")
+      setEditProvider("")
     }
   }
 
@@ -269,20 +285,29 @@ export function ChatHistory({ open, onOpenChange, onNewChat, onSessionSelect }: 
   // Handle saving when clicking outside or pressing Enter
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' && editingId) {
-        const session = sessions.find(s => s.id === editingId);
-        if (session) {
-          handleRenameSession(editingId, editTitle.trim() || session.title);
+      const session = sessions.find(s => s.id === editingId);
+      if (!session) return;
+
+      if (e.key === 'Enter' && editingId && editingField) {
+        if (editingField === 'title') {
+          handleUpdateSession(editingId, { title: editTitle.trim() || session.title });
+        } else if (editingField === 'model') {
+          handleUpdateSession(editingId, { model: editModel.trim() || session.model });
+        } else if (editingField === 'provider') {
+          handleUpdateSession(editingId, { provider: editProvider.trim() || session.provider });
         }
       } else if (e.key === 'Escape' && editingId) {
         setEditingId(null);
+        setEditingField(null);
         setEditTitle('');
+        setEditModel('');
+        setEditProvider('');
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [editingId, editTitle, sessions]);
+  }, [editingId, editingField, editTitle, editModel, editProvider, sessions]);
 
   // Load sessions when panel opens
   useEffect(() => {
@@ -373,7 +398,7 @@ export function ChatHistory({ open, onOpenChange, onNewChat, onSessionSelect }: 
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        {editingId === session.id ? (
+                        {editingId === session.id && editingField === 'title' ? (
                           <div className="w-full">
                             <Input
                               value={editTitle}
@@ -386,7 +411,7 @@ export function ChatHistory({ open, onOpenChange, onNewChat, onSessionSelect }: 
                               <Button 
                                 size="sm" 
                                 variant="outline" 
-                                onClick={() => handleRenameSession(session.id, editTitle.trim() || session.title)}
+                                onClick={() => handleUpdateSession(session.id, { title: editTitle.trim() || session.title })}
                               >
                                 Save
                               </Button>
@@ -395,6 +420,7 @@ export function ChatHistory({ open, onOpenChange, onNewChat, onSessionSelect }: 
                                 variant="ghost"
                                 onClick={() => {
                                   setEditingId(null);
+                                  setEditingField(null);
                                   setEditTitle('');
                                 }}
                               >
@@ -408,13 +434,107 @@ export function ChatHistory({ open, onOpenChange, onNewChat, onSessionSelect }: 
                           </h4>
                         )}
 
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="secondary" className="text-xs">
-                            {session.model}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs capitalize">
-                            {session.provider}
-                          </Badge>
+                        <div className="flex items-center gap-2 mt-1" onClick={(e) => e.stopPropagation()} style={{ minHeight: '24px' }}>
+                          {editingId === session.id && editingField === 'model' ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={editModel}
+                                onChange={(e) => setEditModel(e.target.value)}
+                                className="h-6 text-xs w-32"
+                                autoFocus
+                                onFocus={(e) => e.target.select()}
+                              />
+                              <div className="flex gap-1">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="h-6 w-6 p-0 flex items-center justify-center"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleUpdateSession(session.id, { model: editModel.trim() });
+                                  }}
+                                >
+                                  ✓
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0 flex items-center justify-center"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingId(null);
+                                    setEditingField(null);
+                                    setEditModel('');
+                                  }}
+                                >
+                                  ×
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <Badge 
+                              variant="secondary" 
+                              className="text-xs cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingId(session.id);
+                                setEditingField('model');
+                                setEditModel(session.model);
+                              }}
+                            >
+                              {session.model}
+                            </Badge>
+                          )}
+                          {editingId === session.id && editingField === 'provider' ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={editProvider}
+                                onChange={(e) => setEditProvider(e.target.value)}
+                                className="h-6 text-xs w-24"
+                                autoFocus
+                                onFocus={(e) => e.target.select()}
+                              />
+                              <div className="flex gap-1">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="h-6 w-6 p-0 flex items-center justify-center"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleUpdateSession(session.id, { provider: editProvider.trim() });
+                                  }}
+                                >
+                                  ✓
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0 flex items-center justify-center"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingId(null);
+                                    setEditingField(null);
+                                    setEditProvider('');
+                                  }}
+                                >
+                                  ×
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <Badge 
+                              variant="outline" 
+                              className="text-xs capitalize cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingId(session.id);
+                                setEditingField('provider');
+                                setEditProvider(session.provider);
+                              }}
+                            >
+                              {session.provider}
+                            </Badge>
+                          )}
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             {session.message_count} messages
                           </span>
@@ -436,8 +556,9 @@ export function ChatHistory({ open, onOpenChange, onNewChat, onSessionSelect }: 
                               e.stopPropagation();
                               setEditingId(session.id);
                               setEditTitle(session.title);
+                              setEditingField('title');
                             }}
-                            disabled={deletingId === session.id || editingId != null}
+                            disabled={deletingId === session.id || (editingId !== null && editingId !== session.id)}
                           >
                             <MoreHorizontal className="w-3 h-3" />
                           </Button>
@@ -448,6 +569,7 @@ export function ChatHistory({ open, onOpenChange, onNewChat, onSessionSelect }: 
                               e.stopPropagation()
                               setEditingId(session.id)
                               setEditTitle(session.title)
+                              setEditingField('title')
                               // Small delay to ensure the input is rendered before focusing
                               setTimeout(() => {
                                 const input = document.querySelector(`[data-session-id="${session.id}"] input`)
@@ -460,17 +582,36 @@ export function ChatHistory({ open, onOpenChange, onNewChat, onSessionSelect }: 
                             disabled={deletingId === session.id}
                           >
                             <Edit2 className="w-4 h-4 mr-2" />
-                            Rename
+                            Rename Title
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={(e) => {
-                              e.stopPropagation()
-                              if (confirm(`Are you sure you want to delete "${session.title}"?`)) {
-                                handleDeleteSession(session.id)
-                              }
+                              e.stopPropagation();
+                              setEditingId(session.id);
+                              setEditingField('model');
+                              setEditModel(session.model);
                             }}
+                            disabled={deletingId === session.id}
+                          >
+                            <Edit2 className="w-4 h-4 mr-2" />
+                            Edit Model
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingId(session.id);
+                              setEditingField('provider');
+                              setEditProvider(session.provider);
+                            }}
+                            disabled={deletingId === session.id}
+                          >
+                            <Edit2 className="w-4 h-4 mr-2" />
+                            Edit Provider
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             className="text-red-600 dark:text-red-400"
                             disabled={deletingId === session.id}
+                            onSelect={(e) => e.preventDefault()}
                           >
                             <Trash2 className="w-4 h-4 mr-2" />
                             Delete
