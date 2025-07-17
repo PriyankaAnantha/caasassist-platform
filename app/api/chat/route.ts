@@ -521,13 +521,16 @@ Avoid raw bullet-point lists unless absolutely necessary. Use clear structure an
       // Create the stream with enhanced error handling and retry logic
       console.log("Creating AI stream...")
 
+      // Use a longer timeout for Ollama (10 minutes) to accommodate longer response generation
+      const timeoutDuration = provider === 'ollama' ? 10 * 60 * 1000 : 45000; // 10 minutes for Ollama, 45s for others
+      
       const result = await streamText({
         model: aiClient(aiModel),
         system: systemPrompt,
         messages: cleanMessages,
         temperature: 0.7,
         maxTokens,
-        abortSignal: AbortSignal.timeout(45000), // 45 second timeout
+        abortSignal: AbortSignal.timeout(timeoutDuration),
       })
 
       console.log("AI stream created successfully")

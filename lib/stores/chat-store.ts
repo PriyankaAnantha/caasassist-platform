@@ -323,9 +323,9 @@ export const useChatStore = create<ChatState>()(
           isLoading: false,
           isStreaming: false
         }),
-      streamMessage: async (message: string) => {
+      streamMessage: async (userMessage: string) => {
         const state = get();
-        const { selectedModel, selectedProvider, apiKeys, currentSession, user } = state;
+        const { selectedModel, selectedProvider, apiKeys, currentSession, user, ollamaUrl } = state;
         
         if (!selectedModel) {
           throw new Error('No model selected');
@@ -353,37 +353,77 @@ export const useChatStore = create<ChatState>()(
             throw new Error('Failed to create assistant message');
           }
 
-          set({ messages: [...state.messages, assistantMessage] });
+          // Add user message to the conversation
+          const userMessageObj: Message = {
+            id: uuidv4(),
+            role: "user",
+            content: userMessage,
+            timestamp: new Date(),
+            session_id: currentSession?.id || uuidv4()
+          };
 
-          // Handle streaming with proper error handling
-          const MAX_CHUNKS = 1000; // Maximum number of chunks to prevent infinite streaming
-          const CHUNK_DELAY = 50; // Delay between chunks in milliseconds
-          
-          try {
-            for (let i = 0; i < message.length && i < MAX_CHUNKS * 2; i += 2) {
-              streamingContent += message[i];
-              set({
-                messages: state.messages.map(msg => 
-                  msg.id === assistantMessage!.id 
-                    ? { ...msg, content: streamingContent }
-                    : msg
-                )
-              });
-              
-              // Add a timeout to prevent hanging
-              await new Promise(resolve => setTimeout(resolve, CHUNK_DELAY));
+          // Add both messages to the state
+          set({ messages: [...state.messages, userMessageObj, assistantMessage] });
+
+          // Prepare the API request
+          const apiUrl = selectedProvider === 'ollama' 
+            ? `${ollamaUrl || 'http://localhost:11434'}/api/generate`
+            : ''; // Handle other providers if needed
+
+          const requestBody = {
+            model: selectedModel,
+            prompt: userMessage,
+            stream: true
+          };
+
+          // Make the API request
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(selectedProvider !== 'ollama' && { 'Authorization': `Bearer ${providerKey}` })
+            },
+            body: JSON.stringify(requestBody)
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to generate response');
+          }
+
+          if (!response.body) {
+            throw new Error('No response body');
+          }
+
+          // Process the streaming response
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+            for (const line of lines) {
+              try {
+                const parsed = JSON.parse(line);
+                if (parsed.response) {
+                  streamingContent += parsed.response;
+                  // Update the message content in real-time
+                  set(state => ({
+                    messages: state.messages.map(msg => 
+                      msg.id === assistantMessage!.id 
+                        ? { ...msg, content: streamingContent }
+                        : msg
+                    )
+                  }));
+                }
+              } catch (e) {
+                console.warn('Failed to parse chunk:', e);
+              }
             }
-          } catch (streamError) {
-            console.error('Stream error:', streamError);
-            // If streaming fails, complete the message with what we have
-            set({
-              messages: state.messages.map(msg => 
-                msg.id === assistantMessage!.id 
-                  ? { ...msg, content: streamingContent }
-                  : msg
-              )
-            });
-            throw new Error('Streaming failed: ' + (streamError instanceof Error ? streamError.message : 'Unknown error'));
           }
 
         } catch (error) {
