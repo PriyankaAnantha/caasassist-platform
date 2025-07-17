@@ -1,5 +1,13 @@
 import type { NextRequest } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { NextResponse } from "next/server"
+import { Readable } from "stream"
+import { TextDecoder } from "util"
+import { generateEmbedding } from "@/lib/embeddings"
+
+const BATCH_SIZE = 5 // Reduced batch size for embedding generation
+const CHUNK_SIZE = 1000 // Characters per chunk
+const CHUNK_OVERLAP = 200 // Characters overlap between chunks
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now()
@@ -102,21 +110,28 @@ export async function POST(req: NextRequest) {
 
     // Chunk the text
     console.log("Chunking text...")
-    const chunks = chunkText(text, 1000, 200) // 1000 chars with 200 char overlap
+    const chunks = chunkText(text, CHUNK_SIZE, CHUNK_OVERLAP)
     console.log(`Created ${chunks.length} chunks`)
-
+    
     // Generate embeddings and store chunks
     const chunkRecords = []
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i]
+      
+      // Generate embedding for the chunk using Ollama
+      console.log(`Generating embedding for chunk ${i + 1}/${chunks.length}...`)
+      const embedding = await generateEmbedding(chunk)
+      
       chunkRecords.push({
         document_id: documentId,
         user_id: session.user.id,
         content: chunk,
         chunk_index: i,
+        embedding: JSON.stringify(Array.from(embedding)), // Convert Float32Array to regular array for JSON
         metadata: {
-          filename: file.name,
           chunk_size: chunk.length,
+          document_name: file.name,
+          has_embedding: true,
         },
       })
     }

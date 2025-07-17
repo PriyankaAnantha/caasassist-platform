@@ -2,6 +2,16 @@ import { openai } from "@ai-sdk/openai"
 import { createOpenAI } from "@ai-sdk/openai"
 import { streamText } from "ai"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { generateEmbedding } from "@/lib/embeddings"
+
+// Type for document chunks with similarity scores
+interface DocumentChunk {
+  id: string;
+  document_id: string;
+  content: string;
+  similarity: number;
+  metadata: Record<string, any>;
+}
 
 export const maxDuration = 30
 
@@ -182,113 +192,144 @@ export async function POST(req: Request) {
 
     console.log(`Processing ${cleanMessages.length} messages with ${provider}:${model}`)
 
-    // Build system prompt
-    let systemPrompt = `You are CaaSAssist, a helpful AI assistant. You are knowledgeable, friendly, and professional. 
+    // Build base system prompt
+    let systemPrompt = `You are CaaSAssist, a helpful AI assistant specialized in document analysis and Q&A.`
 
-You can help with:
-- General knowledge questions
-- Document analysis and Q&A (when documents are uploaded)
-- Programming and technical questions
-- Writing and content creation
-
-Provide clear, helpful, and accurate responses. If you're referencing uploaded documents, mention that clearly.
-Remember that you are a technical writing assistant. When responding, format your answers in Markdown using:
-Section headings (##)
-Short paragraphs instead of bullet points
-Code blocks where needed
-Clean, readable language like in developer documentation
-
-Avoid raw bullet-point lists unless absolutely necessary. Use clear structure and logical flow.`
-
-    // Enhanced document context retrieval
+    // Enhanced semantic document context retrieval
     let documentContext = ""
     try {
       const lastUserMessage = cleanMessages[cleanMessages.length - 1]
       if (lastUserMessage && lastUserMessage.role === "user") {
-        console.log("=== DOCUMENT SEARCH DEBUG ===")
+        console.log("=== SEMANTIC SEARCH DEBUG ===")
         console.log("User message:", lastUserMessage.content)
 
-        const { data: userDocs, error: docsError } = await supabase
-          .from("documents")
-          .select("id, name, status, chunk_count")
-          .eq("user_id", session.user.id)
-
-        console.log("User documents query result:", { userDocs, docsError })
-
-        if (docsError) {
-          console.log("Error fetching user documents:", docsError)
-        } else if (userDocs && userDocs.length > 0) {
-          console.log(`Found ${userDocs.length} documents for user:`)
-          userDocs.forEach((doc) => {
-            console.log(`- ${doc.name} (${doc.status}, ${doc.chunk_count} chunks)`)
-          })
-
-          const completedDocs = userDocs.filter((doc) => doc.status === "completed")
-          console.log(`${completedDocs.length} completed documents`)
-
-          if (completedDocs.length > 0) {
-            const { data: allChunks, error: chunksError } = await supabase
-              .from("document_chunks")
-              .select("content, metadata, document_id")
-              .eq("user_id", session.user.id)
-              .limit(10)
-
-            console.log("Document chunks query result:", {
-              chunksCount: allChunks?.length || 0,
-              chunksError,
-            })
-
-            if (chunksError) {
-              console.log("Error fetching document chunks:", chunksError)
-            } else if (allChunks && allChunks.length > 0) {
-              console.log(`Found ${allChunks.length} document chunks`)
-
-              const userQuery = lastUserMessage.content.toLowerCase()
-              const keywords = userQuery.split(" ").filter((word) => word.length > 3)
-              console.log("Search keywords:", keywords)
-
-              let relevantChunks = allChunks
-
-              if (keywords.length > 0) {
-                relevantChunks = allChunks.filter((chunk) => {
-                  const chunkContent = chunk.content.toLowerCase()
-                  return keywords.some((keyword) => chunkContent.includes(keyword))
-                })
-
-                console.log(`Found ${relevantChunks.length} relevant chunks using keywords`)
-              }
-
-              if (relevantChunks.length === 0) {
-                relevantChunks = allChunks.slice(0, 3)
-                console.log(`No keyword matches, using first ${relevantChunks.length} chunks as general context`)
-              }
-
-              if (relevantChunks.length > 0) {
-                documentContext = relevantChunks
-                  .slice(0, 5)
-                  .map((chunk, index) => {
-                    const docName = userDocs.find((doc) => doc.id === chunk.document_id)?.name || "Unknown Document"
-                    return `[Document: ${docName}]\n${chunk.content}`
-                  })
-                  .join("\n\n")
-                  .substring(0, 2000)
-
-                console.log(`Built document context (${documentContext.length} characters)`)
-                console.log("Document context preview:", documentContext.substring(0, 200) + "...")
-
-                systemPrompt += `\n\n=== RELEVANT DOCUMENT CONTEXT ===\nThe user has uploaded documents. Here is relevant content from their documents:\n\n${documentContext}\n\n=== END DOCUMENT CONTEXT ===\n\nWhen answering, reference the document content when relevant and mention which document you're referencing.`
-              }
-            } else {
-              console.log("No document chunks found - documents may not be processed yet")
-            }
-          } else {
-            console.log("No completed documents found")
+        try {
+          // Generate embedding for the user's query using Ollama
+          console.log("\n=== GENERATING EMBEDDING FOR QUERY ===");
+          console.log("Query:", lastUserMessage.content);
+          
+          const queryEmbedding = await generateEmbedding(lastUserMessage.content);
+          console.log("Query embedding generated, length:", queryEmbedding?.length);
+          
+          // Use Supabase's vector similarity search
+          console.log("\n=== SEARCHING FOR RELEVANT CHUNKS ===");
+          console.log("Search parameters:", {
+            match_threshold: 0.3, // Lower threshold to get more results
+            match_count: 5,
+            user_id: session.user.id
+          });
+          
+          const { data: relevantChunks, error: searchError } = await supabase
+            .rpc('match_document_chunks', {
+              query_embedding: queryEmbedding,
+              match_threshold: 0.3, // Lower threshold to get more results
+              match_count: 5, // Number of chunks to return
+              user_id: session.user.id // Only search user's documents
+            }) as { data: DocumentChunk[] | null; error: any };
+            
+          console.log("Search results:", {
+            chunksFound: relevantChunks?.length || 0,
+            error: searchError ? searchError.message : null
+          });
+          
+          if (relevantChunks && relevantChunks.length > 0) {
+            console.log("\n=== FOUND RELEVANT CHUNKS ===");
+            relevantChunks.forEach((chunk, i) => {
+              console.log(`\n--- CHUNK ${i + 1} ---`);
+              console.log(`Document ID: ${chunk.document_id}`);
+              console.log(`Similarity: ${chunk.similarity ? (chunk.similarity * 100).toFixed(1) : 'N/A'}%`);
+              console.log(`Content: ${chunk.content.substring(0, 150)}...`);
+            });
           }
-        } else {
-          console.log("No documents found for user")
-        }
 
-        console.log("=== END DOCUMENT SEARCH DEBUG ===")
+          if (searchError) {
+            console.error("Error in semantic search:", searchError)
+            throw searchError
+          } 
+          
+          if (relevantChunks && relevantChunks.length > 0) {
+            console.log(`Found ${relevantChunks.length} relevant chunks using vector similarity`)
+            
+            // Get document names for better context
+            const documentIds = [...new Set(relevantChunks.map((chunk: DocumentChunk) => chunk.document_id))]
+            console.log("Fetching document names for IDs:", documentIds)
+            console.log('=== DOCUMENT ACCESS DEBUG ===')
+            console.log('User ID:', session.user.id)
+            
+            // Get documents for the current user
+            const { data: documents, error: docsError } = await supabase
+              .from('documents')
+              .select('id, name, user_id, status, created_at')
+              .eq('user_id', session.user.id)
+              .eq('status', 'completed')
+              
+            console.log('Documents found:', documents?.length || 0)
+            if (documents && documents.length > 0) {
+              console.log('Document names:', documents.map(d => d.name).join(', '))
+            } else {
+              console.log('No processed documents found for user')
+            }
+            
+            const { data: userDocs, error: docError } = await supabase
+              .from('documents')
+              .select('id, name')
+              .in('id', documentIds)
+              
+            if (docError) {
+              console.error("Error fetching document names:", docError)
+              throw docError
+            }
+            
+            console.log("Fetched documents:", userDocs)
+            const documentMap = new Map(userDocs?.map(doc => [doc.id, doc.name]) || [])
+            
+            // Format the context with document names and similarity scores
+            documentContext = relevantChunks
+              .map((chunk: DocumentChunk) => {
+                const docName = documentMap.get(chunk.document_id) || 'Unknown Document'
+                const similarity = chunk.similarity ? (chunk.similarity * 100).toFixed(1) : 'N/A'
+                return `---\n[Document: ${docName} | Relevance: ${similarity}%]\n${chunk.content}\n---`
+              })
+              .join("\n\n")
+              .substring(0, 3000) // Limit context length
+
+            console.log(`Built document context (${documentContext.length} characters)`)
+            console.log("Document context preview:", documentContext.substring(0, 200) + "...")
+
+            // Build a more structured prompt with clear instructions
+            const docName = documentMap.get(relevantChunks[0].document_id) || 'the document';
+            
+            // Create a more focused and direct prompt
+            systemPrompt = `You are an expert at extracting and summarizing information from documents. \
+            Your task is to answer the user's question using ONLY the provided document context.\n\n` +
+              `## DOCUMENT CONTEXT (from "${docName}"):\n${documentContext}\n\n` +
+              `## INSTRUCTIONS:\n` +
+              `1. Read the document context carefully. It contains excerpts from the user's uploaded documents.\n` +
+              `2. Answer the user's question using ONLY information from the context.\n` +
+              `3. If the answer isn't in the context, say \"I couldn't find that information in the provided documents.\"\n` +
+              `4. Be specific and reference the relevant parts of the document.\n` +
+              `5. If the document contains quotes or specific terms, include them in your response.\n\n` +
+              `## USER'S QUESTION:\n${lastUserMessage.content}\n\n` +
+              `## YOUR RESPONSE:\n` +
+              `Based on the document "${docName}": `;
+              
+            console.log('Final system prompt with context:', systemPrompt)
+          } else {
+            console.log("No relevant document chunks found using semantic search")
+            systemPrompt = `You are a helpful assistant. The user has asked: "${lastUserMessage.content}"\n\n` +
+              `I couldn't find any relevant information in the uploaded documents to answer this question.\n\n` +
+              `Here are some suggestions for better results:\n` +
+              `1. Try rephrasing your question using different keywords\n` +
+              `2. Ask about specific topics mentioned in your documents\n` +
+              `3. Make sure your question relates to the content of your uploaded documents\n\n` +
+              `If you're asking about document content, try being more specific about what you're looking for.`
+          }
+        } catch (embeddingError) {
+          console.error("Error during embedding or search:", embeddingError)
+          systemPrompt = `You are a helpful assistant. The user has asked: "${lastUserMessage.content}"\n\n` +
+            `I encountered an error while processing your request. Please try again later.`
+        }
+        console.log("=== END SEMANTIC SEARCH DEBUG ===")
       }
     } catch (docError) {
       console.error("Document context error:", docError)
