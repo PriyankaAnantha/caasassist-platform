@@ -299,30 +299,44 @@ export async function POST(req: Request) {
             // Build a more structured prompt with clear instructions
             const docName = documentMap.get(relevantChunks[0].document_id) || 'the document';
             
-            // Create a more focused and direct prompt
-            systemPrompt = `You are an expert at extracting and summarizing information from documents. \
-            Your task is to answer the user's question using ONLY the provided document context.\n\n` +
-              `## DOCUMENT CONTEXT (from "${docName}"):\n${documentContext}\n\n` +
-              `## INSTRUCTIONS:\n` +
-              `1. Read the document context carefully. It contains excerpts from the user's uploaded documents.\n` +
-              `2. Answer the user's question using ONLY information from the context.\n` +
-              `3. If the answer isn't in the context, say \"I couldn't find that information in the provided documents.\"\n` +
-              `4. Be specific and reference the relevant parts of the document.\n` +
-              `5. If the document contains quotes or specific terms, include them in your response.\n\n` +
-              `## USER'S QUESTION:\n${lastUserMessage.content}\n\n` +
-              `## YOUR RESPONSE:\n` +
-              `Based on the document "${docName}": `;
+            // Create a more conversational and helpful prompt
+            const userMessage = lastUserMessage.content.toLowerCase().trim();
+            const isCasualGreeting = /^(hi|hello|hey|greetings|how are you|what's up|howdy|hi there|good (morning|afternoon|evening))[\s\S]*$/.test(userMessage);
+            
+            if (isCasualGreeting) {
+              systemPrompt = `You are CaaSAssist, a friendly and helpful AI assistant. The user has greeted you with: "${lastUserMessage.content}"\n\n` +
+                `Please respond in a warm, conversational manner. If you have access to the user's documents, you can mention that you're ready to help with any questions about them.`;
+            } else {
+              systemPrompt = `You are CaaSAssist, a helpful AI assistant specialized in document analysis and Q&A.\n\n` +
+                `## DOCUMENT CONTEXT (from "${docName}"):\n${documentContext}\n\n` +
+                `## INSTRUCTIONS:\n` +
+                `1. Carefully analyze the provided document context and the user's question.\n` +
+                `2. If the user's question can be answered using the document context, provide a clear, concise, and helpful response.\n` +
+                `3. If the document contains specific quotes, terms, or data points that are relevant, include them in your response.\n` +
+                `4. If the question isn't related to the document content, politely explain that you can only answer questions based on the provided documents.\n` +
+                `5. Be friendly, professional, and maintain a helpful tone throughout the conversation.\n\n` +
+                `## USER'S QUESTION:\n${lastUserMessage.content}\n\n` +
+                `## YOUR RESPONSE (start with a friendly tone):\n`;
+            }
               
             console.log('Final system prompt with context:', systemPrompt)
           } else {
             console.log("No relevant document chunks found using semantic search")
-            systemPrompt = `You are a helpful assistant. The user has asked: "${lastUserMessage.content}"\n\n` +
-              `I couldn't find any relevant information in the uploaded documents to answer this question.\n\n` +
-              `Here are some suggestions for better results:\n` +
-              `1. Try rephrasing your question using different keywords\n` +
-              `2. Ask about specific topics mentioned in your documents\n` +
-              `3. Make sure your question relates to the content of your uploaded documents\n\n` +
-              `If you're asking about document content, try being more specific about what you're looking for.`
+            const userMessage = lastUserMessage.content.toLowerCase().trim();
+            const isCasualGreeting = /^(hi|hello|hey|greetings|how are you|what's up|howdy|hi there|good (morning|afternoon|evening))[\s\S]*$/.test(userMessage);
+            
+            if (isCasualGreeting) {
+              systemPrompt = `You are CaaSAssist, a friendly and helpful AI assistant. The user has greeted you with: "${lastUserMessage.content}"\n\n` +
+                `Please respond in a warm, conversational manner. You can ask how you can assist them today or mention that you're here to help with any questions they might have.`;
+            } else {
+              systemPrompt = `You are CaaSAssist, a helpful AI assistant. The user has asked: "${lastUserMessage.content}"\n\n` +
+                `I couldn't find any relevant information in your uploaded documents to answer this specific question.\n\n` +
+                `Here are some suggestions to help me assist you better:\n` +
+                `• Try rephrasing your question using different keywords or phrases\n` +
+                `• Ask about specific topics or sections from your documents\n` +
+                `• If you're looking for general information, I can help with that too! Just let me know what you need.\n\n` +
+                `I'm here to help, so feel free to ask me anything else!`;
+            }
           }
         } catch (embeddingError) {
           console.error("Error during embedding or search:", embeddingError)
