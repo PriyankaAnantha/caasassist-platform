@@ -25,3 +25,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Sensitive files
+backend/service-account.json
+backend/credentials.json
+backend/token.json
+backend/token.pickle
