@@ -1,38 +1,8 @@
-Greetings, everyone. My name is Priyanka.
+Greetings, everyone. My name is Priyanka. I'm a final-year student pursuing my B.Tech.
+    This is a test sentence to ensure the model can learn.
 
-And today, I would like to begin with what the Bhagavad Gita presents as a foundational principle: “Uddhared atmanātmānam” — the self must be lifted by the self.
-And I would like to add to that Swami Vivekananda’s call to charge: “Arise, awake, and stop not till the goal is reached.”
+    Today, we will discuss the fine-tuning of large language models.
+    Unsloth provides an efficient way to train these models. This is the second block of text.
 
-Together, they offer a blueprint for leadership. First, the deliberate construction of the self. Then, the application of that self in service to a higher cause.
-I believe this is what Coach Donato described as the Championship Standard: service to Mother India.
-
-My life's architecture and purpose follows this exact blueprint.
-
-My short-term phase is inward. I consider it a rigorous project of self-creation. Inspired by my Mother's wisdom: "Swa Karya Ve Swami Karya". To help oneself is to help the world. 
-I aim to sharpen my mind through the discipline of data and systems thinking, and to strengthen my body and character with the clarity that comes only through consistent effort.
-Reshaping systems requires clarity. It requires strength. And above all, it requires inner stability. That’s the foundation — and it must come first. I see this as sharpening the tool before the sculpting begins.
-
-My long-term phase moves outward. My vision for India emerges as a mode of perception — one that engages with complexity through design, data, and disciplined inquiry.
-It is less a fixed endpoint and more an evolving method for structural intervention.
-This method resonates with my own lived experiences.
-
-For instance, the recent partial loss of my vision that I have had has taught me how perception evolves when traditional channels narrow.
-I’ve come to rely more deeply on pattern recognition than surface level signals.
-
-When I turned to public systems for support, I encountered a deeper challenge: structural blindness.
-These experiences served as data points — each one illuminating hidden flaws within our institutional design.
-
-This, therefore, is and shall be the focus of my life’s work: to diagnose these systemic fractures.
-To master tools of many shapes, forms, and kinds — whether in science or arts or systems theory — and to use them to make the invisible architecture of our society visible, and more importantly, repairable.
-
-So, dear DexSchool,
-I do not come here just for answers. I come seeking sharper tools to ask better questions.
-I bring with me a mission forged in lived reality. I now seek the intellectual fire to temper it into lasting service.
-Together, we can build an India that is healthier, more educated, and more empowered than ever before.
-
-I am ready to arise, awake, and remain prepared to stop not till the goal is reached — the goal to build, together, an India, I reiterate, an India, that is healthier, more educated, and more empowered than ever before.
-
-For ourselves, for our communities, and for Mother India.
-
-Thank you. Jai Hind.
-
+    The API should be able to handle this data format.
+    Each block is separated by a newline. This is the third and final block.
