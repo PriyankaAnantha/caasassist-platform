@@ -48,14 +48,14 @@ unsloth_compiled_cache/
 # Data files and uploads
 example_dataset.json
 test_dataset.json
-uploads/
+# uploads/
 
 # Test files
-test_*.py
+# test_*.py
 !test/
 
 # Python script files
-main.py
+# main.py
 
 # env files
 .env*
