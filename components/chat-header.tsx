@@ -7,9 +7,9 @@ import { UserMenu } from "@/components/user-menu"
 import { ModelInput } from "@/components/model-input"
 import { SettingsDialog } from "@/components/settings-dialog"
 import { useChatStore } from "@/lib/stores/chat-store"
-import { MessageSquare, History, FileText, Settings, Info } from "lucide-react"
+import { MessageSquare, History, FileText, Settings, Info, Sparkles } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-
+import { useRouter } from "next/navigation"
 import { OllamaStatusIcon } from "@/components/ollama-status-icon"
 
 interface ChatHeaderProps {
@@ -20,6 +20,7 @@ interface ChatHeaderProps {
 export function ChatHeader({ onToggleHistory, onToggleDocuments }: ChatHeaderProps) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const { currentSession } = useChatStore()
+  const router = useRouter()
 
   return (
     <header className="border-b border-blue-200/50 bg-white/80 backdrop-blur-sm dark:bg-gray-900/80 dark:border-gray-700/50 p-4">
@@ -117,6 +118,17 @@ export function ChatHeader({ onToggleHistory, onToggleDocuments }: ChatHeaderPro
         </div>
 
         <div className="flex items-center space-x-2">
+          {/* Fine-tuning Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="hidden md:flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+            onClick={() => router.push('/fine-tuning')}
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>Fine-tune</span>
+          </Button>
+
           {/* Action Buttons */}
           <Button
             variant="ghost"

@@ -45,7 +45,7 @@
   - Data isolation at the database level
 
 - **Advanced Document Processing**
-  - Support for PDF, TXT, and Markdown formats
+  - Support for PDF, TXT, and JSONL formats
   - Automatic document chunking and vectorization
   - Smart metadata extraction and indexing
 
@@ -53,6 +53,13 @@
   - Context-aware conversations using RAG technology
   - Support for follow-up questions and conversation history
   - Real-time response streaming
+
+- **Model Fine-Tuning**
+  - Fine-tune open-source LLMs with your own data
+  - Support for multiple base models (Llama 3, Mistral, Gemma)
+  - Intuitive UI for managing training jobs
+  - Real-time progress tracking
+  - Secure storage of training data and models
 
 ### Technical Highlights
 - **Multi-Model Support**
@@ -232,6 +239,47 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## 🔧 Model Fine-Tuning Guide
+
+### Accessing the Fine-Tuning Interface
+1. Log in to your CaaSAssist account
+2. Click on the "Fine-tune" button in the top navigation bar
+3. You'll be redirected to the fine-tuning dashboard
+
+### Creating a New Fine-Tuning Job
+1. **Configure Model**
+   - Enter a unique name for your fine-tuned model
+   - Select a base model from the available options
+   - Adjust training parameters (epochs, learning rate, etc.)
+
+2. **Upload Training Data**
+   - Click "Upload Files" and select your training data in JSONL format
+   - Each line should be a JSON object with "prompt" and "completion" fields
+   - You can upload multiple files (up to 10 files per job)
+
+3. **Start Training**
+   - Review your configuration
+   - Click "Start Fine-tuning" to begin the training process
+   - Monitor progress in real-time
+
+### Managing Fine-Tuned Models
+- View all your fine-tuned models in the "My Models" section
+- Track training progress and metrics
+- Deploy fine-tuned models directly to the chat interface
+- Delete models when no longer needed
+
+### Best Practices
+- Start with a small subset of your data for testing
+- Use a learning rate between 2e-5 and 2e-4 for most use cases
+- Monitor loss values to detect overfitting
+- Save checkpoints to resume training if needed
+
+### Supported Base Models
+- `unsloth/llama-3-8b-bnb-4bit` (Recommended for most use cases)
+- `unsloth/llama-3-8b`
+- `unsloth/mistral-7b`
+- `unsloth/gemma-7b`
 
 ## 🤖 AI Models Status
 
