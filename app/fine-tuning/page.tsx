@@ -23,6 +23,7 @@ export default function FineTuningPage() {
   const [baseUrl, setBaseUrl] = useState<string>("")
   const [isConnected, setIsConnected] = useState<boolean>(false)
   const [selectedModel, setSelectedModel] = useState<string>("")
+  const [customModelName, setCustomModelName] = useState<string>("")
   const [availableModels, setAvailableModels] = useState<string[]>([])
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [isTraining, setIsTraining] = useState<boolean>(false)
@@ -76,27 +77,47 @@ export default function FineTuningPage() {
   }, [trainingJobId, isTraining, baseUrl])
 
   const handleFileSelected = async (files: File[]) => {
+    if (!baseUrl) {
+      toast({
+        title: "Error",
+        description: "Please enter the Colab server URL first",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (files.length > 0) {
-      setUploadedFile(files[0])
+      setUploadedFile(files[0]);
+      
+      // Ensure baseUrl ends with a single slash
+      const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
       
       // Auto-upload the file
       const formData = new FormData();
       formData.append('file', files[0]);
       
       try {
-        const response = await fetch(`${baseUrl}/upload`, {
+        console.log(`Uploading file to: ${normalizedBaseUrl}upload`);
+        const response = await fetch(`${normalizedBaseUrl}upload`, {
           method: 'POST',
           body: formData,
+          // Don't set Content-Type header, let the browser set it with the correct boundary
+          headers: {},
           // Add a longer timeout for large files
           signal: AbortSignal.timeout(300000), // 5 minutes
         });
         
+        const result = await response.json();
+        console.log('Upload response:', result);
+        
         if (!response.ok) {
-          const error = await response.text();
-          throw new Error(error || 'Upload failed');
+          throw new Error(result.message || `Upload failed with status ${response.status}`);
         }
         
-        const result = await response.json();
+        toast({
+          title: "Success",
+          description: "File uploaded successfully!",
+        });
         handleUploadComplete(result);
       } catch (error: any) {
         console.error('Upload error:', error);
@@ -120,131 +141,208 @@ export default function FineTuningPage() {
     })
   }
 
+  const pollTrainingStatus = async (jobId: string) => {
+    if (!jobId) return;
+    
+    const checkStatus = async () => {
+      try {
+        const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+        const statusResponse = await fetch(`${normalizedBaseUrl}status/${jobId}`);
+        
+        if (!statusResponse.ok) {
+          throw new Error('Failed to fetch training status');
+        }
+        
+        const statusData = await statusResponse.json();
+        setTrainingStatus(statusData.status);
+        setTrainingProgress(statusData.progress || 0);
+        
+        // Fetch logs
+        const logsResponse = await fetch(`${normalizedBaseUrl}logs/${jobId}`);
+        if (logsResponse.ok) {
+          const logsData = await logsResponse.json();
+          if (logsData.logs && logsData.logs.length > 0) {
+            setLogs(logsData.logs);
+          }
+        }
+        
+        // Continue polling if still running
+        if (statusData.status === 'running') {
+          setTimeout(checkStatus, 5000);
+        } else if (statusData.status === 'completed') {
+          setLogs(prev => [...prev, 'Training completed successfully!']);
+          downloadModel(jobId);
+        } else if (statusData.status === 'failed') {
+          setLogs(prev => [...prev, 'Training failed. Please check the logs.']);
+        }
+      } catch (error) {
+        console.error('Error checking training status:', error);
+        setLogs(prev => [...prev, `Error checking status: ${error instanceof Error ? error.message : 'Unknown error'}`]);
+      }
+    };
+    
+    checkStatus();
+  };
+  
+  const downloadModel = async (jobId: string) => {
+    if (!jobId || !customModelName) return;
+    
+    try {
+      setLogs(prev => [...prev, 'Preparing to download fine-tuned model...']);
+      const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+      const downloadUrl = `${normalizedBaseUrl}download/${jobId}?model_name=${encodeURIComponent(customModelName)}`;
+      
+      // This will trigger a download in the browser
+      window.open(downloadUrl, '_blank');
+      setLogs(prev => [...prev, 'Download started in a new tab.']);
+    } catch (error) {
+      console.error('Error downloading model:', error);
+      setLogs(prev => [...prev, `Error downloading model: ${error instanceof Error ? error.message : 'Unknown error'}`]);
+    }
+  };
+
   const startTraining = async () => {
     if (!selectedModel || !uploadedFile) {
       toast({
         title: "Error",
         description: "Please select a model and upload a dataset first",
         variant: "destructive",
-      })
-      return
+      });
+      return;
+    }
+
+    if (!customModelName) {
+      toast({
+        title: "Error",
+        description: "Please enter a name for your fine-tuned model",
+        variant: "destructive",
+      });
+      return;
     }
 
     try {
-      setIsTraining(true)
-      setTrainingStatus("starting")
-      setLogs(["Starting training process..."])
+      setIsTraining(true);
+      setTrainingStatus("starting");
+      setLogs(["Starting training process..."]);
       
-      const formData = new FormData()
-      formData.append("model_name", selectedModel)
-      formData.append("dataset_file", uploadedFile.name)
-
-      const response = await fetch(`${baseUrl}/train`, {
+      // Ensure baseUrl ends with a single slash
+      const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+      
+      const response = await fetch(`${normalizedBaseUrl}train`, {
         method: "POST",
-        body: formData,
-      })
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          model_name: selectedModel,
+          dataset_file: uploadedFile.name,
+          saved_model_name: customModelName,
+        }),
+      });
 
       if (!response.ok) {
-        const error = await response.text()
-        throw new Error(error || 'Failed to start training')
+        const error = await response.text();
+        throw new Error(error || 'Failed to start training');
       }
 
-      const data = await response.json()
-      setTrainingJobId(data.job_id)
+      const data = await response.json();
+      setTrainingJobId(data.job_id);
+      setLogs(prev => [...prev, `Training started with Job ID: ${data.job_id}`]);
+      
+      // Start polling for status
+      pollTrainingStatus(data.job_id);
       
       toast({
         title: "Training started",
         description: `Job ID: ${data.job_id}`,
-      })
+      });
     } catch (error) {
-      console.error('Training error:', error)
-      setIsTraining(false)
-      setTrainingStatus("error")
+      console.error('Training error:', error);
+      setIsTraining(false);
+      setTrainingStatus("error");
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      setLogs(prev => [...prev, `Error: ${errorMessage}`])
+      setLogs(prev => [...prev, `Error: ${errorMessage}`]);
       
       toast({
         title: "Training failed to start",
         description: errorMessage,
         variant: "destructive",
-      })
+      });
     }
   }
+
+  // Define available models directly
+  const AVAILABLE_MODELS = [
+    "unsloth/Llama-3.2-1B-Instruct",
+    "unsloth/tinyllama-bnb-4bit",
+    "unsloth/mistral-7b-v0.3-bnb-4bit",
+    "unsloth/gemma-2-9b-it-bnb-4bit",
+  ];
+
+  // Initialize models when component mounts
+  useEffect(() => {
+    setAvailableModels(AVAILABLE_MODELS);
+    if (AVAILABLE_MODELS.length > 0 && !selectedModel) {
+      setSelectedModel(AVAILABLE_MODELS[0]);
+    }
+  }, []);
 
   const testConnection = async () => {
     if (!baseUrl) {
       toast({
         title: "Error",
-        description: "Please enter a valid API URL",
-        variant: "destructive",
+        description: "Please enter the Colab server URL first",
+        variant: "destructive"
       });
       return false;
     }
 
     try {
-      // Ensure baseUrl is clean (remove trailing slash if any)
-      const cleanUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+      // Ensure baseUrl ends with a single slash
+      const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
       
-      // First test the root endpoint
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      console.log(`Testing connection to: ${normalizedBaseUrl}`);
       
-      const rootResponse = await fetch(cleanUrl, {
+      // Test the root endpoint
+      const response = await fetch(normalizedBaseUrl, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
         },
-        signal: controller.signal,
       });
-      
-      clearTimeout(timeoutId);
 
-      if (!rootResponse.ok) {
-        throw new Error(`API root endpoint returned status ${rootResponse.status}`);
+      if (!response.ok) {
+        const error = await response.text().catch(() => 'Connection failed');
+        throw new Error(error);
       }
 
-      // Then test the models endpoint
-      const modelsController = new AbortController();
-      const modelsTimeoutId = setTimeout(() => modelsController.abort(), 10000); // 10 second timeout
+      const data = await response.json().catch(() => ({}));
+      console.log('Connection response:', data);
       
-      const modelsResponse = await fetch(`${cleanUrl}/models`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-        },
-        signal: modelsController.signal,
-      });
-      
-      clearTimeout(modelsTimeoutId);
-
-      if (!modelsResponse.ok) {
-        const errorText = await modelsResponse.text();
-        console.error('Models endpoint error:', errorText);
-        throw new Error(`Failed to fetch models (status ${modelsResponse.status})`);
+      // Update available models if provided in the response
+      if (data.models && Array.isArray(data.models)) {
+        setAvailableModels(data.models);
       }
-
-      const models = await modelsResponse.json();
       
-      // If models is an array, use it directly, otherwise try to get models from the response
-      const modelList = Array.isArray(models) ? models : models.models || [];
+      setIsConnected(true);
       
       toast({
         title: "Connection Successful",
-        description: `Connected to Unsloth API. Found ${modelList.length} available models.`,
+        description: data.message || `Connected to Unsloth API. ${data.models?.length || 0} models available.`,
       });
-      
-      setAvailableModels(modelList);
-      setIsConnected(true);
       
       return true;
     } catch (error: any) {
       console.error('Connection test failed:', error);
-      const errorMessage = error?.message || 'Unknown error occurred';
+      const errorMessage = error?.message || 'Failed to connect to the server. Please check the URL and try again.';
+      
       toast({
         title: "Connection Failed",
-        description: `Could not connect to the API: ${errorMessage}`,
+        description: errorMessage,
         variant: "destructive",
       });
+      
+      setIsConnected(false);
       return false;
     }
   }
@@ -321,22 +419,37 @@ export default function FineTuningPage() {
               <CardTitle className="text-base">Model Configuration</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
-              <div className="space-y-2">
-                <Label>Model Name</Label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                >
-                  {availableModels.map(model => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-muted-foreground">
-                  Select a base model to fine-tune
-                </p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Base Model</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                  >
+                    {availableModels.map(model => (
+                      <option key={model} value={model}>
+                        {model}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Select a base model to fine-tune
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Custom Model Name</Label>
+                  <Input
+                    type="text"
+                    placeholder="my-fine-tuned-model"
+                    value={customModelName}
+                    onChange={(e) => setCustomModelName(e.target.value)}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Enter a name for your fine-tuned model
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -354,10 +467,51 @@ export default function FineTuningPage() {
                 onFilesSelected={handleFileSelected}
                 onUploadComplete={handleUploadComplete}
                 onError={handleUploadError}
-                accept=".jsonl,.json,.txt,.md,.pdf"
+                accept={{
+                  'application/json': ['.json', '.jsonl'],
+                  'text/plain': ['.txt'],
+                  'text/markdown': ['.md'],
+                  'application/pdf': ['.pdf']
+                }}
                 maxFiles={1}
                 maxSize={50 * 1024 * 1024} // 50MB
-                apiUrl={baseUrl}
+                customUpload={async (file, onProgress) => {
+                  if (!baseUrl) {
+                    throw new Error('Please enter a valid API URL and test the connection first');
+                  }
+
+                  // Ensure baseUrl ends with a single slash
+                  const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+                  const formData = new FormData();
+                  formData.append('file', file);
+                  
+                  try {
+                    console.log(`Uploading file to: ${normalizedBaseUrl}upload`);
+                    const uploadResponse = await fetch(`${normalizedBaseUrl}upload`, {
+                      method: 'POST',
+                      body: formData,
+                      // Don't set Content-Type header, let the browser set it with the correct boundary
+                      headers: {},
+                    });
+
+                    const result = await uploadResponse.json();
+                    console.log('Upload response:', result);
+
+                    if (!uploadResponse.ok) {
+                      throw new Error(result.message || `Upload failed with status ${uploadResponse.status}`);
+                    }
+
+                    console.log('Upload successful:', result);
+                    
+                    // Update the uploaded file state
+                    setUploadedFile(file);
+                    
+                    return result;
+                  } catch (error) {
+                    console.error('Upload error:', error);
+                    throw error;
+                  }
+                }}
               />
               {uploadedFile && (
                 <div className="mt-4 space-y-2">

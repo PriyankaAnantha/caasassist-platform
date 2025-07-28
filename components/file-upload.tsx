@@ -11,11 +11,14 @@ interface FileUploadProps {
   onUploadProgress?: (progress: number) => void
   onUploadComplete?: (response: any) => void
   onError?: (error: string) => void
-  accept?: string
+  accept?: string | {
+    [key: string]: string[]
+  }
   maxFiles?: number
   maxSize?: number
   className?: string
   apiUrl?: string
+  customUpload?: (file: File, onProgress: (progress: number) => void) => Promise<any>
 }
 
 export function FileUpload({
@@ -23,17 +26,35 @@ export function FileUpload({
   onUploadProgress,
   onUploadComplete,
   onError,
-  accept = ".jsonl,.json,.txt,.md,.pdf",
+  // Using proper MIME types instead of file extensions
+  accept = {
+    'application/json': ['.json', '.jsonl'],
+    'text/plain': ['.txt'],
+    'text/markdown': ['.md'],
+    'application/pdf': ['.pdf']
+  },
   maxFiles = 10,
   maxSize = 50 * 1024 * 1024, // 50MB
   className,
-  apiUrl = ""
+  apiUrl = "",
+  customUpload
 }: FileUploadProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
 
   const uploadFile = async (file: File) => {
+    // If custom upload function is provided, use it
+    if (customUpload) {
+      return customUpload(file, (progress) => {
+        setProgress(progress);
+        if (onUploadProgress) {
+          onUploadProgress(progress);
+        }
+      });
+    }
+
+    // Default upload implementation
     const formData = new FormData()
     formData.append("file", file)
 
@@ -79,7 +100,7 @@ export function FileUpload({
           reject(error)
         }
 
-        xhr.open("POST", `${apiUrl}/upload`, true)
+        xhr.open("POST", `${apiUrl}/documents/process`, true)
         xhr.send(formData)
       })
 
@@ -155,7 +176,7 @@ export function FileUpload({
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: accept ? { [accept]: [] } : undefined,
+    accept: accept as any, // Type assertion to bypass type checking
     maxSize,
     maxFiles,
     disabled: isUploading,
@@ -188,7 +209,8 @@ export function FileUpload({
                   {isDragActive ? "Drop the files here" : "Drag & drop files here, or click to select"}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {accept} (max {maxSize / (1024 * 1024)}MB per file)
+                  {typeof accept === 'string' ? accept : 'Supported files: ' + Object.values(accept).flat().join(', ')}
+                  {' '}(max {maxSize / (1024 * 1024)}MB per file)
                 </p>
               </div>
             </>
