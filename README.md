@@ -42,67 +42,89 @@
 ## ✨ Key Features
 
 ### Core Capabilities
-- **Multi-Tenant Architecture**
-  - Secure, isolated user environments with role-based access control
-  - Data isolation at the database level
+- **Document Processing & Management**
+  - Upload and process PDF, TXT, and MD documents
+  - Automatic text extraction and chunking (1000 characters per chunk with 200-character overlap)
+  - Document status tracking (uploading, processing, completed, error)
+  - Secure file storage with Supabase Storage
 
-- **Advanced Document Processing**
-  - Support for PDF, TXT, and MD formats
-  - Automatic document chunking and vectorization
-  - Smart metadata extraction and indexing
+- **Vector Search & Embeddings**
+  - Generate embeddings using Ollama with Nomic Embed Text
+  - Store and query vector embeddings using pgvector
+  - Semantic search across document chunks
+  - Configurable similarity thresholds for search results
 
-- **Model Fine-Tuning**
-  - Fine-tune models on custom datasets
-  - Support for multiple model architectures
-  - Track training progress and metrics
-  - Deploy fine-tuned models with one click
+- **Multi-Model Chat Interface**
+  - Support for multiple AI providers (OpenAI, OpenRouter, Ollama)
+  - Real-time response streaming for natural conversations
+  - Context-aware responses using RAG (Retrieval-Augmented Generation)
+  - Conversation history and session management
 
-- **Intelligent Chat Experience**
-  - Context-aware conversations using RAG technology
-  - Support for follow-up questions and conversation history
-  - Real-time response streaming
+- **Model Integration**
+ - OpenRouter integration for accessing various models
+  - Configurable support for GPT-4o Mini and other OpenAI models
+  - Local Ollama server support for offline/private model hosting
+  - Dynamic model switching and configuration
 
-- **Model Fine-Tuning**
-  - Fine-tune open-source LLMs with your own data
-  - Support for multiple base models (Llama 3, Mistral, Gemma)
-  - Intuitive UI for managing training jobs
-  - Real-time progress tracking
-  - Secure storage of training data and models
+- **User Authentication & Data Security**
+  - Secure authentication with Supabase Auth
+  - Row-Level Security (RLS) for data isolation
+  - JWT-based session management
+  - Protected API routes with middleware validation
+
+### Fine-Tuning Capabilities
+- **Model Training**
+  - Fine-tune various open-source LLMs including Llama 3.2, Mistral, and Gemma
+  - Support for QLoRA (Quantized Low-Rank Adaptation) for efficient fine-tuning
+  - Custom training on user-provided documents (PDF, TXT, MD formats)
+  - Background job processing with real-time progress tracking
+
+- **Training Features**
+  - Automatic dataset preparation and formatting
+  - Configurable training parameters (learning rate, batch size, epochs)
+  - Integration with Google Colab for GPU-accelerated training
+  - Model checkpointing and resumable training
+
+- **Model Management**
+  - Download and save fine-tuned models
+  - Interactive chat interface for model testing
+  - Support for multiple model versions
+  - Secure storage of training artifacts
 
 ### Technical Highlights
-- **Multi-Model Support**
-  - OpenAI (GPT-4o, GPT-3.5-turbo)
-  - OpenRouter (free models)
-  - Local Ollama integration
-  - Easy model switching and comparison
+- **Multi-Model Support**  
+  - OpenRouter (various models)
+  - Configurable OpenAI (GPT-4o Mini, GPT-3.5-turbo)
+  - Local Ollama with Nomic Embed Text
+  - Dynamic model switching via API
 
 - **Developer Experience**
-  - TypeScript-first development
-  - Well-documented APIs
-  - Comprehensive test coverage
-  - CI/CD ready
+  - TypeScript with Next.js 13+
+  - App Router architecture
+  - Shadcn UI components
+  - Zustand for state management
 
 - **Performance & Scalability**
-  - Serverless architecture
-  - Edge caching
-  - Optimized vector search with pgvector
-  - Efficient document processing pipeline
+  - Server-side rendering (SSR)
+  - Vector search with pgvector
+  - Batch processing for document chunks
+  - Real-time response streaming
 
 ## 🛠 Tech Stack
 
 ### Frontend
 <div style="display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 20px 0;">
   <a href="https://nextjs.org/" target="_blank">
-    <img src="https://img.shields.io/badge/Next.js-13+-000000?logo=nextdotjs&logoColor=white&style=for-the-badge" alt="Next.js">
+    <img src="https://img.shields.io/badge/Next.js-15.2-000000?logo=nextdotjs&logoColor=white&style=for-the-badge" alt="Next.js">
   </a>
   <a href="https://react.dev/" target="_blank">
-    <img src="https://img.shields.io/badge/React-18+-61DAFB?logo=react&logoColor=black&style=for-the-badge" alt="React">
+    <img src="https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black&style=for-the-badge" alt="React">
   </a>
   <a href="https://www.typescriptlang.org/" target="_blank">
-    <img src="https://img.shields.io/badge/TypeScript-5+-3178C6?logo=typescript&logoColor=white&style=for-the-badge" alt="TypeScript">
+    <img src="https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript&logoColor=white&style=for-the-badge" alt="TypeScript">
   </a>
   <a href="https://tailwindcss.com/" target="_blank">
-    <img src="https://img.shields.io/badge/Tailwind_CSS-3.3+-38B2AC?logo=tailwind-css&logoColor=white&style=for-the-badge" alt="Tailwind CSS">
+    <img src="https://img.shields.io/badge/Tailwind_CSS-3.3-38B2AC?logo=tailwind-css&logoColor=white&style=for-the-badge" alt="Tailwind CSS">
   </a>
   <a href="https://ui.shadcn.com/" target="_blank">
     <img src="https://img.shields.io/badge/ShadCN/UI-0.4+-000000?logo=shadcnui&logoColor=white&style=for-the-badge" alt="ShadCN/UI">
@@ -110,58 +132,237 @@
   <a href="https://zustand-demo.pmnd.rs/" target="_blank">
     <img src="https://img.shields.io/badge/Zustand-4.4+-000000?logo=zustand&logoColor=white&style=for-the-badge" alt="Zustand">
   </a>
-  <a href="https://www.framer.com/motion/" target="_blank">
-    <img src="https://img.shields.io/badge/Framer_Motion-10+-0055FF?logo=framer&logoColor=white&style=for-the-badge" alt="Framer Motion">
+  <a href="https://www.npmjs.com/package/ai" target="_blank">
+    <img src="https://img.shields.io/badge/Vercel_AI_SDK-2.2-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel AI SDK">
+  </a>
+  <a href="https://supabase.com/" target="_blank">
+    <img src="https://img.shields.io/badge/Supabase-2.39-181818?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase">
+  </a>
+  <a href="https://react-hook-form.com/" target="_blank">
+    <img src="https://img.shields.io/badge/React_Hook_Form-7.5-EC5990?style=for-the-badge&logo=react-hook-form&logoColor=white" alt="React Hook Form">
+  </a>
+  <a href="https://zod.dev/" target="_blank">
+    <img src="https://img.shields.io/badge/Zod-3.22-3E7BFA?style=for-the-badge&logo=zod&logoColor=white" alt="Zod">
   </a>
 </div>
 
 ### Backend
 <div style="display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0;">
-  <img src="https://img.shields.io/badge/Next.js_API-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js API">
-  <img src="https://img.shields.io/badge/Server--Sent_Events-FF6B6B?style=for-the-badge&logo=serverless&logoColor=white" alt="Server-Sent Events">
-  <img src="https://img.shields.io/badge/AI_SDK-000000?style=for-the-badge&logo=openai&logoColor=white" alt="AI SDK">
+  <a href="https://nextjs.org/docs/app" target="_blank">
+    <img src="https://img.shields.io/badge/Next.js_API_Routes-15.2-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js API Routes">
+  </a>
+  <a href="https://supabase.com/docs/guides/auth" target="_blank">
+    <img src="https://img.shields.io/badge/Supabase_Auth-2.39-181818?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase Auth">
+  </a>
+  <a href="https://supabase.com/docs/guides/database" target="_blank">
+    <img src="https://img.shields.io/badge/PostgreSQL-16-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
+  </a>
+  <a href="https://github.com/pgvector/pgvector" target="_blank">
+    <img src="https://img.shields.io/badge/pgvector-0.5-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="pgvector">
+  </a>
+  <a href="https://supabase.com/docs/guides/storage" target="_blank">
+    <img src="https://img.shields.io/badge/Supabase_Storage-2.39-181818?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase Storage">
+  </a>
 </div>
 
-### Database & Services
+### AI & Data Processing
 <div style="display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0;">
-  <img src="https://img.shields.io/badge/Supabase-181818?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase">
-  <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
-  <img src="https://img.shields.io/badge/pgvector-000000?style=for-the-badge&logo=postgresql&logoColor=white" alt="pgvector">
-  <img src="https://img.shields.io/badge/Supabase_Storage-181818?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase Storage">
-  <img src="https://img.shields.io/badge/Supabase_Auth-181818?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase Auth">
+  <a href="https://www.npmjs.com/package/ai" target="_blank">
+    <img src="https://img.shields.io/badge/Vercel_AI_SDK-2.2-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel AI SDK">
+  </a>
+  <a href="https://openai.com/" target="_blank">
+    <img src="https://img.shields.io/badge/OpenAI-5.10-412991?style=for-the-badge&logo=openai&logoColor=white" alt="OpenAI">
+  </a>
+  <a href="https://openrouter.ai/" target="_blank">
+    <img src="https://img.shields.io/badge/OpenRouter-1.0-412991?style=for-the-badge&logo=openai&logoColor=white" alt="OpenRouter">
+  </a>
+  <a href="https://ollama.ai/" target="_blank">
+    <img src="https://img.shields.io/badge/Ollama-0.1-000000?style=for-the-badge&logo=ollama&logoColor=white" alt="Ollama">
+  </a>
+  <a href="https://huggingface.co/nomic-ai" target="_blank">
+    <img src="https://img.shields.io/badge/Nomic_Embed_Text-1.5-FFD43B?style=for-the-badge&logo=huggingface&logoColor=black" alt="Nomic Embed Text">
+  </a>
 </div>
 
-### AI Providers
-<div style="display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0;">
-  <img src="https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white" alt="OpenAI">
-  <img src="https://img.shields.io/badge/OpenRouter-412991?style=for-the-badge&logo=openai&logoColor=white" alt="OpenRouter">
-  <img src="https://img.shields.io/badge/Ollama-000000?style=for-the-badge&logo=ollama&logoColor=white" alt="Ollama">
-  <img src="https://img.shields.io/badge/Llama-FF6B35?style=for-the-badge&logo=llama&logoColor=white" alt="Llama">
-  <img src="https://img.shields.io/badge/Gemma-FF6B35?style=for-the-badge&logo=google&logoColor=white" alt="Gemma">
-</div>
 
-## 🏗️ Architecture
 
-CaaSAssist is built on a modern, scalable architecture that combines the power of Next.js, Supabase, and AI technologies:
+## 📁 Project Structure
+
+```
+caasassist-platform/
+├── app/                      # Next.js app directory
+│   ├── api/                  # API routes
+│   ├── chat/                 # Chat interface components
+│   ├── fine-tuning/          # Model fine-tuning interface
+│   └── ...
+├── components/               # Reusable UI components
+├── hooks/                    # Custom React hooks
+├── lib/                      # Shared utilities and libraries
+├── public/                   # Static assets
+├── scripts/                  # Utility scripts
+├── styles/                   # Global styles
+├── supabase/                 # Supabase configuration and migrations
+├── unsloth_api_colab/        # Unsloth API integration for Colab
+├── .env.local                # Environment variables
+├── next.config.mjs           # Next.js configuration
+├── package.json              # Project dependencies
+└── tsconfig.json             # TypeScript configuration
+```
+
+## 🏗️ System Architecture
+
+CaaSAssist is built on a modern, full-stack architecture that leverages Next.js for both frontend and backend, with Supabase for data persistence and authentication. The system is designed to be scalable, secure, and maintainable.
+
+### Architecture Overview
 
 ```mermaid
 graph TD
-    A[Next.js Frontend] --> B[API Routes]
-    B --> C[Supabase Auth]
-    B --> D[Supabase Database]
-    B --> E[Vector Store]
-    B --> F[AI Models]
-    F --> G[Pre-trained Models]
-    F --> H[Fine-tuned Models]
+    %% User Interaction Layer
+    A[Web Browser] -->|HTTPS| B[Next.js Frontend]
+    A -->|WebSocket| B
     
-    subgraph "Fine-Tuning Service"
-    I[Google Colab] --> J[Unsloth Backend]
-    J --> K[Model Training]
-    K --> L[Model Storage]
+    %% Frontend Components
+    subgraph Frontend["Next.js Frontend (React 18+)"]
+        B1[UI Components]
+        B2[State Management]
+        B3[Real-time Updates]
+        B4[Auth Context]
     end
     
-    B --> I
+    %% API Layer
+    B -->|API Requests| C[Next.js API Routes]
+    
+    %% Authentication & Authorization
+    C --> D[Supabase Auth]
+    D -->|JWT| C
+    
+    %% Database Layer
+    C --> E[Supabase PostgreSQL]
+    
+    %% AI Services Layer
+    C --> F[AI Services]
+    
+    %% AI Services Components
+    subgraph AI["AI Services"]
+        F1[OpenRouter API]
+        F2[Ollama Local]
+        F3[Embedding Generation]
+        F4[Fine-Tuning Service]
+        
+        %% Model Providers
+        F1 -->|Multiple Models| F5[LLM Models]
+        F2 -->|Local Models| F5
+        
+        %% RAG Pipeline
+        F3 -->|Generate| F6[Document Embeddings]
+        F6 -->|Store| G[Vector Database]
+        
+        %% Fine-Tuning
+        F4 -->|Train| F7[Custom Models]
+        F7 -->|Deploy| F5
+    end
+    
+    %% Data Storage Components
+    subgraph Storage["Data Storage (Supabase)"]
+        E -->|Tables| H[Documents]
+        E -->|Tables| I[Document Chunks]
+        E -->|Tables| J[Chat Sessions]
+        E -->|Tables| K[User Data]
+        E -->|Extensions| L[pgvector]
+        
+        %% Vector Search
+        L --> M[Semantic Search]
+        M -->|Similarity| N[Relevant Chunks]
+    end
+    
+    %% External Services
+    subgraph External["External Services"]
+        O[Google Colab] -->|Fine-Tuning| F4
+        P[Supabase Storage] -->|File Storage| H
+    end
+    
+    %% Data Flow
+    B1 -->|User Query| C
+    C -->|Process| F
+    F -->|Retrieve Context| M
+    M -->|Context| F5
+    F5 -->|Response| B1
+    
+    %% Styling
+    classDef frontend fill:#f0f9ff,stroke:#0369a1,stroke-width:2px
+    classDef database fill:#f0fdf4,stroke:#15803d,stroke-width:2px
+    classDef ai fill:#fef2f2,stroke:#b91c1c,stroke-width:2px
+    classDef external fill:#f5f3ff,stroke:#7e22ce,stroke-width:2px
+    
+    class Frontend,AI,Storage,External frontend,database,ai,external
 ```
+
+### Data Flow
+
+1. **User Authentication**
+   - Users authenticate via Supabase Auth
+   - JWT tokens are used for subsequent API requests
+   - Row Level Security (RLS) ensures data isolation
+
+2. **Document Processing**
+   ```
+   User Upload → File Validation → Text Extraction → 
+   Chunking → Embedding Generation → Vector Storage
+   ```
+   - Supports PDF, TXT, and MD formats
+   - Documents are split into chunks with overlap
+   - Each chunk is converted to embeddings using Ollama/Nomic Embed Text
+   - Chunks and embeddings are stored in Supabase with pgvector
+
+3. **Chat Interaction**
+   ```
+   User Query → Embedding Generation → 
+   Vector Similarity Search → Context Augmentation → 
+   LLM Generation → Response Streaming
+   ```
+   - User queries are converted to embeddings
+   - Relevant document chunks are retrieved using vector similarity
+   - Context is augmented with conversation history
+   - Response is streamed in real-time
+
+4. **Model Fine-Tuning**
+   - Users can fine-tune models via Google Colab integration
+   - Training data is processed and sent to Unsloth backend
+   - Fine-tuned models are stored and can be deployed
+
+### Key Components
+
+1. **Frontend (Next.js 13+)**
+   - App Router for file-based routing
+   - Server Components for better performance
+   - Client-side state management with Zustand
+   - Real-time updates via Server-Sent Events
+
+2. **Backend (Next.js API Routes)**
+   - RESTful API endpoints
+   - Authentication middleware
+   - Rate limiting and request validation
+   - Error handling and logging
+
+3. **Database (Supabase PostgreSQL)**
+   - User authentication and profiles
+   - Document and chunk storage
+   - Vector embeddings with pgvector
+   - Chat history and sessions
+
+4. **AI Services**
+   - Multiple model providers (OpenRouter, Ollama, configurable OpenAI)
+   - Embedding generation with Nomic Embed Text
+   - RAG (Retrieval-Augmented Generation)
+   - Model fine-tuning capabilities
+
+### Security Considerations
+
+- Row Level Security (RLS) for data isolation
+- JWT-based authentication
+- Secure file uploads with signed URLs
+- Environment-based configuration
+- Rate limiting on API endpoints
 
 ### Components
 
@@ -174,18 +375,51 @@ graph TD
 2. **Backend**
    - Next.js API Routes
    - Supabase for authentication and database
-   - Vector embeddings with Pinecone
+   - Vector embeddings with pgvector (via Supabase)
    - File storage with Supabase Storage
 
 3. **AI Services**
-   - OpenRouter API integration
-   - Custom fine-tuning pipeline
-   - RAG (Retrieval-Augmented Generation)
-   - Model deployment and serving
+   - **Embedding Generation**: Local Ollama server with Nomic Embed Text model
+   - **LLM Integration**: OpenRouter API for model access
+   - **RAG Pipeline**:
+     - Document chunking and embedding
+     - Vector similarity search using pgvector
+     - Context-aware response generation
+   - **Fine-Tuning**: Custom model training via Google Colab
+
+### Embedding System
+
+CaaSAssist uses a local Ollama server with the Nomic Embed Text model for generating embeddings. This provides:
+
+- **Local Processing**: All embeddings are generated on your infrastructure
+- **Cost-Effective**: No API costs for embedding generation
+- **Privacy-First**: Your data never leaves your infrastructure
+- **Fallback Mechanism**: Simple TF-IDF (Term Frequency-Inverse Document Frequency is a simple but effective fallback method for text search and information retrieval when vector embeddings aren't available) based fallback if Ollama is unavailable
+
+#### Setup Requirements
+
+1. **Ollama Server**:
+   ```bash
+   # Install Ollama (if not already installed)
+   # See: https://ollama.ai/
+   
+   # Start the Ollama server
+   ollama serve
+   
+   # Pull the Nomic Embed Text model
+   ollama pull nomic-embed-text
+   ```
+
+2. **Environment Variables**:
+   ```env
+   # In your .env.local
+   OLLAMA_API_URL=http://localhost:11434
+   EMBEDDING_MODEL=nomic-embed-text
+   ```
 
 ## 🎯 Fine-Tuning Capabilities
 
-CaaSAssist provides a powerful fine-tuning workflow that allows you to customize AI models on your own data:
+CaaSAssist provides a streamlined workflow for fine-tuning language models using Google Colab's free GPU resources. The fine-tuning process is handled through a client-server architecture:
 
 ### Supported Models
 - `unsloth/Llama-3.2-1B-Instruct`
@@ -193,40 +427,62 @@ CaaSAssist provides a powerful fine-tuning workflow that allows you to customize
 - `unsloth/mistral-7b-v0.3-bnb-4bit`
 - `unsloth/gemma-2-9b-it-bnb-4bit`
 
-### Fine-Tuning Process
-1. **Prepare Your Data**
-   - Upload documents in PDF, TXT, or MD format
-   - Automatic data preprocessing and cleaning
-   - Dataset versioning and management
+### How It Works
 
-2. **Configure Training**
-   - Select base model
-   - Set hyperparameters
-   - Configure training duration
-   - Resource allocation
+1. **Backend (Google Colab)**
+   - Runs a FastAPI server with access to NVIDIA T4 GPU
+   - Uses ngrok to create a secure public URL
+   - Handles the heavy computation of model training
 
-3. **Monitor Training**
-   - Real-time training metrics
-   - Resource utilization tracking
-   - Automatic checkpointing
+2. **Client (Local Machine)**
+   - Interactive command-line interface
+   - Handles file uploads and job monitoring
+   - Downloads the final model after training
 
-4. **Deploy & Test**
-   - One-click deployment
-   - A/B testing
-   - Performance monitoring
+### Getting Started with Fine-Tuning
 
-For detailed fine-tuning documentation, see the [Fine-Tuning Guide](./unsloth_api_colab/README.md).
+1. **Set Up ngrok**
+   - Sign up at [ngrok.com](https://ngrok.com)
+   - Get your authtoken from the dashboard
+
+2. **Run the Backend on Colab**
+   - Open `unsloth_api_colab/backend_colab_pro.py` in Google Colab
+   - Set up a GPU runtime
+   - Add your ngrok authtoken
+   - Start the API server
+
+3. **Use the Interactive Client**
+   ```bash
+   python unsloth_api_colab/test_client_interactive.py
+   ```
+   - Follow the prompts to upload documents and start training
+   - The client will guide you through the entire process
+
+### Key Features
+- **Document Support**: Process PDF, TXT, and MD files
+- **Interactive Training**: Monitor progress through the command line
+- **Model Testing**: Chat with your fine-tuned model directly after training
+
+For detailed instructions, see the [Fine-Tuning Guide](./unsloth_api_colab/README.md).
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ and npm
-- PostgreSQL 14+
-- Supabase account
-- OpenRouter API key
-- Pinecone account (for vector search)
-- Google account (for Colab fine-tuning)
+- **Development Environment**:
+  - Node.js 18+ and npm
+  - PostgreSQL 14+
+  - Python 3.8+ (for fine-tuning)
+  - Ollama (for local embeddings)
+
+- **Services**:
+  - Supabase account (database and auth)
+  - OpenRouter API key (for LLM access)
+  - Google account (for Colab fine-tuning)
+
+- **Local Setup**:
+  - Ollama server running with Nomic Embed Text model
+  - Required environment variables configured
 
 ### System Requirements
 
@@ -590,10 +846,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Thanks to mentor [Ma'am Sharmila Sudhakar](https://github.com/sharmilasudhakar07) who has helped shape this project
 - Special thanks to the open-source community for the amazing tools and libraries
 
-## 📚 Resources
-
-- [Changelog](CHANGELOG.md)
-- [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## 🌟 Show Your Support
 
