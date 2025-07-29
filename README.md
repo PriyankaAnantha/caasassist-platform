@@ -1,6 +1,6 @@
 <div align="center">
   <h1>🤖 CaaSAssist - Conversational Agent as a Service</h1>
-  <p>A production-grade, multi-tenant SaaS platform that enables seamless document-based AI conversations through Retrieval-Augmented Generation (RAG) technology.</p>
+  <p>A production-grade, multi-tenant SaaS platform that enables seamless document-based AI conversations through Retrieval-Augmented Generation (RAG) technology and additional primitive Fine-Tuning capabilities.</p>
   
   <p align="center">
     <a href="https://github.com/PriyankaAnantha/caasassist-platform">
@@ -19,6 +19,8 @@
   <p align="center">
     <a href="#features">Features</a> •
     <a href="#tech-stack">Tech Stack</a> •
+    <a href="#architecture">Architecture</a> •
+    <a href="#fine-tuning">Fine-Tuning</a> •
     <a href="#getting-started">Getting Started</a> •
     <a href="#deployment">Deployment</a> •
     <a href="#contributing">Contributing</a>
@@ -45,9 +47,15 @@
   - Data isolation at the database level
 
 - **Advanced Document Processing**
-  - Support for PDF, TXT, and JSONL formats
+  - Support for PDF, TXT, and MD formats
   - Automatic document chunking and vectorization
   - Smart metadata extraction and indexing
+
+- **Model Fine-Tuning**
+  - Fine-tune models on custom datasets
+  - Support for multiple model architectures
+  - Track training progress and metrics
+  - Deploy fine-tuned models with one click
 
 - **Intelligent Chat Experience**
   - Context-aware conversations using RAG technology
@@ -132,17 +140,93 @@
   <img src="https://img.shields.io/badge/Gemma-FF6B35?style=for-the-badge&logo=google&logoColor=white" alt="Gemma">
 </div>
 
+## 🏗️ Architecture
+
+CaaSAssist is built on a modern, scalable architecture that combines the power of Next.js, Supabase, and AI technologies:
+
+```mermaid
+graph TD
+    A[Next.js Frontend] --> B[API Routes]
+    B --> C[Supabase Auth]
+    B --> D[Supabase Database]
+    B --> E[Vector Store]
+    B --> F[AI Models]
+    F --> G[Pre-trained Models]
+    F --> H[Fine-tuned Models]
+    
+    subgraph "Fine-Tuning Service"
+    I[Google Colab] --> J[Unsloth Backend]
+    J --> K[Model Training]
+    K --> L[Model Storage]
+    end
+    
+    B --> I
+```
+
+### Components
+
+1. **Frontend**
+   - Next.js 13+ with App Router
+   - React Server Components
+   - Tailwind CSS + Shadcn UI
+   - Real-time updates with Server-Sent Events
+
+2. **Backend**
+   - Next.js API Routes
+   - Supabase for authentication and database
+   - Vector embeddings with Pinecone
+   - File storage with Supabase Storage
+
+3. **AI Services**
+   - OpenRouter API integration
+   - Custom fine-tuning pipeline
+   - RAG (Retrieval-Augmented Generation)
+   - Model deployment and serving
+
+## 🎯 Fine-Tuning Capabilities
+
+CaaSAssist provides a powerful fine-tuning workflow that allows you to customize AI models on your own data:
+
+### Supported Models
+- `unsloth/Llama-3.2-1B-Instruct`
+- `unsloth/tinyllama-bnb-4bit`
+- `unsloth/mistral-7b-v0.3-bnb-4bit`
+- `unsloth/gemma-2-9b-it-bnb-4bit`
+
+### Fine-Tuning Process
+1. **Prepare Your Data**
+   - Upload documents in PDF, TXT, or MD format
+   - Automatic data preprocessing and cleaning
+   - Dataset versioning and management
+
+2. **Configure Training**
+   - Select base model
+   - Set hyperparameters
+   - Configure training duration
+   - Resource allocation
+
+3. **Monitor Training**
+   - Real-time training metrics
+   - Resource utilization tracking
+   - Automatic checkpointing
+
+4. **Deploy & Test**
+   - One-click deployment
+   - A/B testing
+   - Performance monitoring
+
+For detailed fine-tuning documentation, see the [Fine-Tuning Guide](./unsloth_api_colab/README.md).
+
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-Before you begin, ensure you have the following installed:
-
-- [Node.js](https://nodejs.org/) 18.17 or later
-- [npm](https://www.npmjs.com/) 9+ or [Yarn](https://yarnpkg.com/) 1.22+
-- [Git](https://git-scm.com/)
-- [Supabase](https://supabase.com/) account (free tier available)
-- (Optional) [Docker](https://www.docker.com/) for local development with Ollama
+- Node.js 18+ and npm
+- PostgreSQL 14+
+- Supabase account
+- OpenRouter API key
+- Pinecone account (for vector search)
+- Google account (for Colab fine-tuning)
 
 ### System Requirements
 
