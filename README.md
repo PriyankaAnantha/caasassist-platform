@@ -215,87 +215,19 @@ CaaSAssist is built on a modern, full-stack architecture that leverages Next.js 
 
 ### Architecture Overview
 
-```mermaid
-graph TD
-    %% User Interaction Layer
-    A[Web Browser] -->|HTTPS| B[Next.js Frontend]
-    A -->|WebSocket| B
-    
-    %% Frontend Components
-    subgraph Frontend["Next.js Frontend (React 18+)"]
-        B1[UI Components]
-        B2[State Management]
-        B3[Real-time Updates]
-        B4[Auth Context]
-    end
-    
-    %% API Layer
-    B -->|API Requests| C[Next.js API Routes]
-    
-    %% Authentication & Authorization
-    C --> D[Supabase Auth]
-    D -->|JWT| C
-    
-    %% Database Layer
-    C --> E[Supabase PostgreSQL]
-    
-    %% AI Services Layer
-    C --> F[AI Services]
-    
-    %% AI Services Components
-    subgraph AI["AI Services"]
-        F1[OpenRouter API]
-        F2[Ollama Local]
-        F3[Embedding Generation]
-        F4[Fine-Tuning Service]
-        
-        %% Model Providers
-        F1 -->|Multiple Models| F5[LLM Models]
-        F2 -->|Local Models| F5
-        
-        %% RAG Pipeline
-        F3 -->|Generate| F6[Document Embeddings]
-        F6 -->|Store| G[Vector Database]
-        
-        %% Fine-Tuning
-        F4 -->|Train| F7[Custom Models]
-        F7 -->|Deploy| F5
-    end
-    
-    %% Data Storage Components
-    subgraph Storage["Data Storage (Supabase)"]
-        E -->|Tables| H[Documents]
-        E -->|Tables| I[Document Chunks]
-        E -->|Tables| J[Chat Sessions]
-        E -->|Tables| K[User Data]
-        E -->|Extensions| L[pgvector]
-        
-        %% Vector Search
-        L --> M[Semantic Search]
-        M -->|Similarity| N[Relevant Chunks]
-    end
-    
-    %% External Services
-    subgraph External["External Services"]
-        O[Google Colab] -->|Fine-Tuning| F4
-        P[Supabase Storage] -->|File Storage| H
-    end
-    
-    %% Data Flow
-    B1 -->|User Query| C
-    C -->|Process| F
-    F -->|Retrieve Context| M
-    M -->|Context| F5
-    F5 -->|Response| B1
-    
-    %% Styling
-    classDef frontend fill:#f0f9ff,stroke:#0369a1,stroke-width:2px
-    classDef database fill:#f0fdf4,stroke:#15803d,stroke-width:2px
-    classDef ai fill:#fef2f2,stroke:#b91c1c,stroke-width:2px
-    classDef external fill:#f5f3ff,stroke:#7e22ce,stroke-width:2px
-    
-    class Frontend,AI,Storage,External frontend,database,ai,external
-```
+![Architecture Diagram](Diagram1.png)
+
+### Detailed Workflows
+
+Here is a more detailed look at the core RAG and Fine-Tuning processes.
+
+**Retrieval-Augmented Generation (RAG) Flow**
+
+![Rag flow](Diagram2.png)
+
+**Fine-Tuning Flow**
+
+![Fine-tuning flow](Diagram3.png)
 
 ### Data Flow
 
