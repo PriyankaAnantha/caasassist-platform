@@ -56,8 +56,8 @@ The system uses a powerful client-server model to leverage Google's free GPU res
 ### Step 1: Prerequisites (One-Time Setup)
 
 #### A. Get a Free `ngrok` Authtoken
-1.  Sign up for a free account at **[ngrok.com](https://ngrok.com)**.
-2.  On your dashboard, navigate to **Your Authtoken** in the left menu.
+1.  Sign up for a free account at **[ngrok.com](https://ngrok.com)**. 
+2.  On your dashboard, navigate to **Your Authtoken** in the left menu. You can get one from https://dashboard.ngrok.com/get-started/your-authtoken
 3.  **Click the "Copy" button** to copy your authtoken. You will need this for the Colab notebook.
 
 #### B. Set Up Your Local Environment
@@ -99,7 +99,7 @@ pip install requests
 ### Step 3: Run the Interactive Client
 
 1. Open a terminal on your local computer
-2. Navigate to the project directory
+2. Navigate to the project directory and cd to the `unsloth_api_colab` folder
 3. Run the interactive client:
    ```bash
    python test_client_interactive.py
